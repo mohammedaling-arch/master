@@ -18,7 +18,7 @@ jobs:
       # client
       - name: 📦 Install client dependencies
         working-directory: client
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: 🛠 Build React app
         working-directory: client
