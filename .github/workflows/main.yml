@@ -30,7 +30,7 @@ jobs:
           server: ftp.minventory.com.ng
           username: ${{ secrets.ftp_username }}
           password: ${{ secrets.ftp_password }}
-          dangerous-clean-slate: true
+         
           server-dir: ./
           local-dir: client/dist/
 
@@ -41,7 +41,7 @@ jobs:
 
       # - name: 🛠 Build server app
       #   working-directory: server
-      #   run: npm run build
+      #   run: npm run build  dangerous-clean-slate: true
 
       - name: 📂 Upload server `dist/` via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
