@@ -1,0 +1,25 @@
+3091:         if (err) return res.status(500).json({ error: err.message });
+3092:         res.status(201).json({ message: 'Probate application filed by staff', id: result.insertId });
+3093:     });
+3094: });
+3095: 
+3096: app.post('/api/applicants/:id/probate/:appId/documents', authenticateToken, upload.single('file'), (req, res) => {
+3097:     if (req.user.type !== 'staff') return res.status(403).json({ error: 'Access denied' });
+3098:     const { appId } = req.params;
+3099:     const { documentName } = req.body;
+3100:     const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+3101:     console.log(`[DEBUG] Uploading for appId: ${appId}, docName: ${documentName}, filePath: ${filePath}`);
+3102: 
+3103:     if (!filePath) return res.status(400).json({ error: 'No file uploaded' });
+3104: 
+3105:     const sql = 'INSERT INTO probate_documents (probate_application_id, document_name, document_path, pay_status) VALUES (?, ?, ?, ?)';
+3106:     db.query(sql, [appId, documentName, filePath, 'waived'], (err) => {
+3107:         if (err) return res.status(500).json({ error: err.message });
+3108:         res.json({ message: 'Document uploaded' });
+3109:     });
+3110: });
+3111: 
+3112: // Explicitly placed here to avoid shadowing
+3113: app.get('/api/user/probate-applications', authenticateToken, (req, res) => {
+3114:     const userId = req.user.id;
+3115:     console.log(`[ENDPOINT HIT] Fetching probate apps for user: ${userId}`);

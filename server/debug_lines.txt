@@ -1,0 +1,30 @@
+3091:     });
+3092: });
+3093: 
+3094: app.post('/api/applicants/:id/probate/:appId/documents', authenticateToken, upload.single('file'), (req, res) => {
+3095:     if (req.user.type !== 'staff') return res.status(403).json({ error: 'Access denied' });
+3096:     const { appId } = req.params;
+3097:     const { documentName } = req.body;
+3098:     const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+3099: 
+3100:     if (!filePath) return res.status(400).json({ error: 'No file uploaded' });
+3101: 
+3102:     const sql = 'INSERT INTO probate_documents (probate_application_id, document_name, document_type, document_path, pay_status) VALUES (?, ?, ?, ?, ?)';
+3103:     db.query(sql, [appId, documentName, 'pdf', filePath, 'waived'], (err) => {
+3104:         if (err) return res.status(500).json({ error: err.message });
+3105:         res.json({ message: 'Document uploaded' });
+3106:     });
+3107: });
+3108: 
+3109: // Explicitly placed here to avoid shadowing
+3110: app.get('/api/user/probate-applications', authenticateToken, (req, res) => {
+3111:     const userId = req.user.id;
+3112:     console.log(`[ENDPOINT HIT] Fetching probate apps for user: ${userId}`);
+3113:     const sql = `
+3114:         SELECT p.*, 
+3115:                COALESCE(u.first_name, ap.first_name) as applicant_first_name, 
+3116:                COALESCE(u.surname, ap.surname) as applicant_surname, 
+3117:                COALESCE(u.email, ap.email) as applicant_email
+3118:         FROM probate_applications p
+3119:         LEFT JOIN public_users u ON p.user_id = u.id
+3120:         LEFT JOIN applicants ap ON p.applicant_id = ap.id

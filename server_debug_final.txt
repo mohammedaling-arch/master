@@ -1,0 +1,40 @@
+2941:                 db.query(sql, [filePath, fee, paymentStatus, existing[0].id], (upErr) => {
+2942:                     if (upErr) return res.status(500).json({ error: upErr.message });
+2943:                     res.status(200).json({ message: 'Document updated', documentId: existing[0].id });
+2944:                 });
+2945:             } else {
+2946:                 // INSERT new
+2947:                 const sql = `
+2948:                     INSERT INTO probate_documents 
+2949:                     (probate_application_id, document_name, document_type, document_path, document_pay, pay_status) 
+2950:                     VALUES (?, ?, ?, ?, ?, ?)
+2951:                 `;
+2952:                 db.query(sql, [id, documentName, 'pdf', filePath, fee, paymentStatus], (insertErr, result) => {
+2953:                     if (insertErr) return res.status(500).json({ error: insertErr.message });
+2954:                     res.status(201).json({ message: 'Document uploaded', documentId: result.insertId });
+2955:                 });
+2956:             }
+2957:         });
+2958:     });
+2959: });
+2960: 
+3091:     });
+3092: });
+3093: 
+3094: app.post('/api/applicants/:id/probate/:appId/documents', authenticateToken, upload.single('file'), (req, res) => {
+3095:     if (req.user.type !== 'staff') return res.status(403).json({ error: 'Access denied' });
+3096:     const { appId } = req.params;
+3097:     const { documentName } = req.body;
+3098:     const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+3099: 
+3100:     if (!filePath) return res.status(400).json({ error: 'No file uploaded' });
+3101: 
+3102:     const sql = 'INSERT INTO probate_documents (probate_application_id, document_name, document_type, document_path, pay_status) VALUES (?, ?, ?, ?, ?)';
+3103:     db.query(sql, [appId, documentName, 'pdf', filePath, 'waived'], (err) => {
+3104:         if (err) return res.status(500).json({ error: err.message });
+3105:         res.json({ message: 'Document uploaded' });
+3106:     });
+3107: });
+3108: 
+3109: // Explicitly placed here to avoid shadowing
+3110: app.get('/api/user/probate-applications', authenticateToken, (req, res) => {

@@ -1,0 +1,10 @@
+id: int
+probate_application_id: int
+document_name: varchar(255)
+document_type: enum('pdf','image')
+document_path: varchar(255)
+document_required: tinyint(1)
+document_pay: decimal(10,2)
+pay_status: enum('paid','unpaid','pending','waived')
+remark: varchar(255)
+created_at: timestamp

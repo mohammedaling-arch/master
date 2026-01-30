@@ -1,0 +1,15 @@
+CREATE TABLE `probate_documents` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `probate_application_id` int DEFAULT NULL,
+  `document_name` varchar(255) NOT NULL,
+  `document_type` enum('pdf','image') DEFAULT 'pdf',
+  `document_path` varchar(255) DEFAULT NULL,
+  `document_required` tinyint(1) DEFAULT '0',
+  `document_pay` decimal(10,2) DEFAULT '0.00',
+  `pay_status` enum('paid','unpaid','pending','waived') DEFAULT 'unpaid',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `probate_application_id` (`probate_application_id`),
+  CONSTRAINT `probate_documents_ibfk_1` FOREIGN KEY (`probate_application_id`) REFERENCES `probate_applications` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

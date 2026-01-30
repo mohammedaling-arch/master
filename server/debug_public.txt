@@ -1,0 +1,20 @@
+2941:                 db.query(sql, [filePath, fee, paymentStatus, existing[0].id], (upErr) => {
+2942:                     if (upErr) return res.status(500).json({ error: upErr.message });
+2943:                     res.status(200).json({ message: 'Document updated', documentId: existing[0].id });
+2944:                 });
+2945:             } else {
+2946:                 // INSERT new
+2947:                 const sql = `
+2948:                     INSERT INTO probate_documents 
+2949:                     (probate_application_id, document_name, document_type, document_path, document_pay, pay_status) 
+2950:                     VALUES (?, ?, ?, ?, ?, ?)
+2951:                 `;
+2952:                 db.query(sql, [id, documentName, 'pdf', filePath, fee, paymentStatus], (insertErr, result) => {
+2953:                     if (insertErr) return res.status(500).json({ error: insertErr.message });
+2954:                     res.status(201).json({ message: 'Document uploaded', documentId: result.insertId });
+2955:                 });
+2956:             }
+2957:         });
+2958:     });
+2959: });
+2960: 
