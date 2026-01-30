@@ -28,7 +28,7 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ftp.minventory.com.ng
-          username: ${{ secrets.ftp_user }}
+          username: ${{ secrets.ftp_username }}
           password: ${{ secrets.ftp_password }}
           server-dir: /crms.minventory.com.ng/
           local-dir: client/dist/
@@ -46,7 +46,7 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ftp.minventory.com.ng
-          username: ${{ secrets.ftp_user }}
+          username: ${{ secrets.ftp_username }}
           password: ${{ secrets.ftp_password }}
           server-dir: /crms.minventory.com.ng/backend
           local-dir: server/dist/
@@ -62,7 +62,7 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ftp.minventory.com.ng
-          username: ${{ secrets.ftp_user }}
+          username: ${{ secrets.ftp_username }}
           password: ${{ secrets.ftp_password }}
           server-dir: /crms.minventory.com.ng/backend/tmp/
           local-dir: server/tmp/
