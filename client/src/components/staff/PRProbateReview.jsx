@@ -5,7 +5,7 @@ import {
     Check, X, Eye, FileText, User, Loader2,
     AlertCircle, Briefcase, Users, Home, Calendar,
     ArrowLeft, ChevronRight, ChevronLeft, CheckCircle2, ClipboardCheck,
-    Search
+    Search, Download
 } from 'lucide-react';
 
 import api from '../../utils/api';
@@ -28,15 +28,33 @@ const DocumentViewer = ({ doc, onClose }) => {
                     <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <FileText size={20} color="#3b82f6" /> {doc.document_name || doc.document_type}
                     </h3>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px' }}>
-                        <X size={24} color="#6b7280" />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <a
+                            href={fullPath}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '6px',
+                                background: '#3b82f6', color: 'white', border: 'none',
+                                padding: '8px 16px', borderRadius: '6px', cursor: 'pointer',
+                                fontSize: '13px', fontWeight: 'bold', textDecoration: 'none'
+                            }}
+                        >
+                            <Download size={16} /> Download
+                        </a>
+                        <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px' }}>
+                            <X size={24} color="#6b7280" />
+                        </button>
+                    </div>
                 </div>
-                <div style={{ flex: 1, overflow: 'auto', background: '#e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                <div style={{ flex: 1, overflow: 'hidden', background: '#525659' }}>
                     {isPdf ? (
-                        <iframe src={fullPath} style={{ width: '100%', height: '100%', border: 'none', background: 'white' }} title="Document Viewer"></iframe>
+                        <iframe src={`${fullPath}${fullPath.includes('#') ? '' : '#view=FitH'}`} style={{ width: '100%', height: '100%', border: 'none' }} title="Document Viewer"></iframe>
                     ) : (
-                        <img src={fullPath} alt="Document" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                        <div style={{ width: '100%', height: '100%', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                            <img src={fullPath} alt="Document" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                        </div>
                     )}
                 </div>
             </div>
@@ -539,6 +557,8 @@ const PRProbateReview = ({ isMobile, mode = 'review', title: pageTitle }) => {
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedId, setSelectedId] = useState(null);
+    const [viewingDoc, setViewingDoc] = useState(null);
+    const [loadingPrayers, setLoadingPrayers] = useState(null);
     const { showModal } = useModal();
 
     useEffect(() => {
@@ -699,28 +719,78 @@ const PRProbateReview = ({ isMobile, mode = 'review', title: pageTitle }) => {
             >
                 <Eye size={16} /> {['under_processing', 'approved', 'completed'].includes(row.status) ? 'View' : 'Review'}
             </button>
+            {(() => {
+                const dateVal = row.approval_date || (row.status === 'approved' && row.updated_at);
+                const isMatured = dateVal ? Math.floor((new Date() - new Date(dateVal)) / (1000 * 60 * 60 * 24)) >= 21 : false;
+
+                // PR/PD ONLY see if matured in letters mode
+                if (mode === 'letters' && isMatured) {
+                    const isGenerating = loadingPrayers === row.id;
+                    return (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (isGenerating) return;
+
+                                const handleShowPrayers = async () => {
+                                    setLoadingPrayers(row.id);
+                                    try {
+                                        const res = await api.get(`/staff/probate/${row.id}/prayers-pdf`);
+                                        if (res.data.path) {
+                                            setViewingDoc({
+                                                document_name: `Prayers - ${row.deceased_name}`,
+                                                document_path: res.data.path
+                                            });
+                                        }
+                                    } catch (err) {
+                                        console.error("Failed to load prayers:", err);
+                                        showModal({ type: 'error', title: 'Error', message: 'Failed to load Prayers document.' });
+                                    } finally {
+                                        setLoadingPrayers(null);
+                                    }
+                                };
+                                handleShowPrayers();
+                            }}
+                            className="btn"
+                            disabled={isGenerating}
+                            style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: isGenerating ? 0.7 : 1 }}
+                        >
+                            {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                            {isGenerating ? 'Generating...' : 'Prayers'}
+                        </button>
+                    );
+                }
+                return null;
+            })()}
             {row.status === 'completed' && (
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         const handleViewLetter = async () => {
+                            setLoadingPrayers(`letter-${row.id}`);
                             try {
                                 const res = await api.get(`/staff/probate/${row.id}/letter-pdf`);
                                 if (res.data.path) {
-                                    window.open(`${api.defaults.baseURL.replace('/api', '')}${res.data.path}`, '_blank');
+                                    setViewingDoc({
+                                        document_name: `Letter of Admin - ${row.deceased_name}`,
+                                        document_path: res.data.path
+                                    });
                                 }
                             } catch (err) {
                                 console.error("Failed to load letter:", err);
                                 showModal({ type: 'error', title: 'Error', message: 'Failed to load Letter of Administration.' });
+                            } finally {
+                                setLoadingPrayers(null);
                             }
                         };
                         handleViewLetter();
                     }}
+                    disabled={loadingPrayers === `letter-${row.id}`}
                     className="btn btn-secondary"
-                    title="View Letter of Administration"
-                    style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', color: 'rgb\(18 37 74\)', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                    style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: loadingPrayers === `letter-${row.id}` ? 'not-allowed' : 'pointer' }}
                 >
-                    <FileText size={16} /> Letter
+                    {loadingPrayers === `letter-${row.id}` ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                    {loadingPrayers === `letter-${row.id}` ? 'Loading...' : 'Letter'}
                 </button>
             )}
         </div>
@@ -741,6 +811,14 @@ const PRProbateReview = ({ isMobile, mode = 'review', title: pageTitle }) => {
                 isMobile={isMobile}
                 searchPlaceholder="Search by ID or name..."
             />
+            {/* Prayers & Letter Preview Modal */}
+            <AnimatePresence>
+                {viewingDoc && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                        <DocumentViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

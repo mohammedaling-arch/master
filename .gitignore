@@ -1,0 +1,13 @@
+# --- Dependencies ---
+client/node_modules/
+server/node_modules/
+.pnp
+.pnp.js
+
+# --- Build Outputs ---
+# We ignore these because GitHub Actions will build fresh versions
+dist/
+build/
+client/dist/
+server/dist/
+server/.env

@@ -97,15 +97,33 @@ const DocumentViewer = ({ doc, onClose }) => {
                     <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <FileText size={20} color="#3b82f6" /> {doc.document_name}
                     </h3>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
-                        <X size={24} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <a
+                            href={fullPath}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '6px',
+                                background: '#3b82f6', color: 'white', border: 'none',
+                                padding: '8px 16px', borderRadius: '8px', cursor: 'pointer',
+                                fontSize: '13px', fontWeight: 'bold', textDecoration: 'none'
+                            }}
+                        >
+                            <Download size={16} /> Download
+                        </a>
+                        <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
+                            <X size={24} />
+                        </button>
+                    </div>
                 </div>
-                <div style={{ flex: 1, overflow: 'auto', background: '#e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', position: 'relative' }}>
+                <div style={{ flex: 1, overflow: 'hidden', background: '#525659', position: 'relative' }}>
                     {isPdf ? (
-                        <iframe src={fullPath} style={{ width: '100%', height: '100%', border: 'none', background: 'white', borderRadius: '8px' }} title="Document Viewer"></iframe>
+                        <iframe src={`${fullPath}${fullPath.includes('#') ? '' : '#view=FitH'}`} style={{ width: '100%', height: '100%', border: 'none' }} title="Document Viewer"></iframe>
                     ) : (
-                        <img src={fullPath} alt="Document" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', borderRadius: '4px' }} />
+                        <div style={{ width: '100%', height: '100%', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                            <img src={fullPath} alt="Document" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', borderRadius: '4px' }} />
+                        </div>
                     )}
                 </div>
             </div>

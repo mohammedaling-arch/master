@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const { sendAffidavitNotification, sendVerificationEmail, sendResetPasswordEmail, sendEmailNotification, sendStaffCredentialsEmail } = require('./emailService');
 const multer = require('multer');
 const { generateToken04 } = require('./utils/zegoTokenGenerator');
-const { generateAffidavitPDF, generateProbateLetterPDF, GENERATOR_VERSION } = require('./pdfGenerator');
+const { generateAffidavitPDF, generateProbateLetterPDF, generateProbatePrayersPDF, GENERATOR_VERSION } = require('./pdfGenerator');
 console.log(`[INIT] PDF Generator Version: ${GENERATOR_VERSION} (Live)`);
 
 const app = express();
@@ -2511,6 +2511,58 @@ app.get('/api/staff/probate/:id/letter-pdf', authenticateToken, (req, res) => {
             res.status(500).json({ error: 'Failed to generate letter' });
         }
     });
+});
+
+app.get('/api/staff/probate/:id/prayers-pdf', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Fetch Probate Application, Beneficiaries, Documents and Settings
+        const [applicationRows] = await db.promise().query(`
+            SELECT pa.*, 
+                   COALESCE(u.first_name, ap.first_name) as applicant_first_name, 
+                   COALESCE(u.surname, ap.surname) as applicant_surname, 
+                   COALESCE(u.phone, ap.phone) as applicant_phone, 
+                   COALESCE(u.address, ap.address) as applicant_address,
+                   COALESCE(u.gender, ap.gender) as applicant_gender,
+                   COALESCE(u.age, ap.age) as applicant_age,
+                   COALESCE(u.nin, ap.nin) as applicant_nin
+            FROM probate_applications pa
+            LEFT JOIN public_users u ON pa.user_id = u.id
+            LEFT JOIN applicants ap ON pa.applicant_id = ap.id
+            WHERE pa.id = ?
+        `, [id]);
+
+        if (applicationRows.length === 0) return res.status(404).json({ error: 'Application not found' });
+        const application = applicationRows[0];
+
+        // Fetch Beneficiaries
+        const [beneficiaries] = await db.promise().query('SELECT * FROM probate_beneficiaries WHERE probate_application_id = ?', [id]);
+        application.beneficiaries = beneficiaries;
+
+        // Fetch Documents
+        const [documents] = await db.promise().query('SELECT * FROM probate_documents WHERE probate_application_id = ?', [id]);
+        application.documents = documents;
+
+        // Fetch Stamp from system_settings
+        const [settings] = await db.promise().query('SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ("court_stamp_path", "probate_stamp")');
+        let stampPath = null;
+        const probateStamp = settings.find(s => s.setting_key === 'probate_stamp');
+        const courtStamp = settings.find(s => s.setting_key === 'court_stamp_path');
+        stampPath = probateStamp ? probateStamp.setting_value : (courtStamp ? courtStamp.setting_value : null);
+
+        const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+        const pdfPath = await generateProbatePrayersPDF({
+            application,
+            serverBaseUrl,
+            stampPath
+        });
+
+        res.json({ path: pdfPath });
+    } catch (error) {
+        console.error("Failed to generate probate prayers PDF:", error);
+        res.status(500).json({ error: 'Failed to generate prayers document: ' + error.message });
+    }
 });
 
 // PR: Review Surety (Accept/Reject)

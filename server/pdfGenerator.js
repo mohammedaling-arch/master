@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs').promises;
+const { PDFDocument, rgb } = require('pdf-lib');
 
 /**
  * Generates an Affidavit PDF on the server side
@@ -491,4 +492,183 @@ async function generateProbateLetterPDF({ application, user, serverBaseUrl }) {
     }
 }
 
-module.exports = { generateAffidavitPDF, generateProbateLetterPDF, GENERATOR_VERSION };
+/**
+ * Generates a merged "Prayers" PDF for a probate application
+ * @param {Object} options 
+ * @returns {Promise<string>}
+ */
+async function generateProbatePrayersPDF({ application, serverBaseUrl, stampPath }) {
+    let browser;
+    try {
+        const beneficiaries = application.beneficiaries || [];
+        const applicantName = `${application.applicant_first_name || ''} ${application.applicant_surname || ''}`.trim();
+
+        // 1. Generate Header Page with Puppeteer
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: 'Times New Roman', Times, serif; line-height: 1.5; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e3a8a; padding-bottom: 20px; }
+        .title { font-size: 24px; font-weight: bold; color: #1e3a8a; text-transform: uppercase; }
+        .subtitle { font-size: 14px; color: #64748b; margin-top: 5px; }
+        .section { margin-bottom: 25px; }
+        .section-title { font-size: 16px; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; margin-bottom: 10px; padding-bottom: 5px; text-transform: uppercase; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
+        .info-item { display: flex; flex-direction: column; }
+        .label { font-weight: bold; color: #64748b; font-size: 11px; text-transform: uppercase; }
+        .value { color: #1e293b; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f8fafc; text-align: left; padding: 8px; font-size: 11px; color: #64748b; text-transform: uppercase; border: 1px solid #e2e8f0; }
+        td { padding: 8px; border: 1px solid #e2e8f0; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Probate Prayers Attachment</div>
+        <div class="subtitle">Summary of Application PRB-${application.id}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Deceased Information</div>
+        <div class="info-grid">
+            <div class="info-item"><span class="label">Full Name</span><span class="value" style="text-transform: uppercase;">${application.deceased_name}</span></div>
+            <div class="info-item"><span class="label">Date of Death</span><span class="value">${new Date(application.date_of_death).toLocaleDateString()}</span></div>
+            <div class="info-item"><span class="label">Occupation</span><span class="value">${application.occupation}</span></div>
+            <div class="info-item"><span class="label">Place of Death</span><span class="value">${application.death_location_address || 'Not Specified'}</span></div>
+            <div class="info-item"><span class="label">Employer</span><span class="value">${application.employer_name || 'N/A'}</span></div>
+            <div class="info-item" style="grid-column: span 2;"><span class="label">Home Address</span><span class="value">${application.home_address}</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Applicant / Next of Kin</div>
+        <div class="info-grid">
+            <div class="info-item"><span class="label">Name</span><span class="value" style="text-transform: uppercase;">${applicantName}</span></div>
+            <div class="info-item"><span class="label">Relationship</span><span class="value">${application.relationship_to_nok}</span></div>
+            <div class="info-item"><span class="label">Gender / Age</span><span class="value">${application.applicant_gender || 'N/A'} / ${application.applicant_age || 'N/A'} Years</span></div>
+            <div class="info-item"><span class="label">NIN Number</span><span class="value">${application.applicant_nin || 'N/A'}</span></div>
+            <div class="info-item"><span class="label">Phone</span><span class="value">${application.applicant_phone || application.phone || 'N/A'}</span></div>
+            <div class="info-item"><span class="label">Address</span><span class="value">${application.applicant_address || application.address || 'N/A'}</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Beneficiaries List</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Relationship</th>
+                    <th>Age/Gender</th>
+                    <th>Contact</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${beneficiaries.map(b => `
+                    <tr>
+                        <td>${b.name}</td>
+                        <td>${b.relationship}</td>
+                        <td>${b.age}Y / ${b.gender}</td>
+                        <td>${b.phone || 'N/A'}</td>
+                    </tr>
+                `).join('')}
+                ${beneficiaries.length === 0 ? '<tr><td colspan="4" style="text-align:center">No beneficiaries listed</td></tr>' : ''}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 40px; font-size: 10px; color: #94a3b8; text-align: center;">
+        Generated on ${new Date().toLocaleString()} • CRMS Probate Division
+    </div>
+</body>
+</html>`;
+
+        browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        const headerPdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+
+        // 2. Prepare for Merging
+        const mergedPdf = await PDFDocument.create();
+
+        // Add Header Page
+        const headerDoc = await PDFDocument.load(headerPdfBuffer);
+        const [headerPage] = await mergedPdf.copyPages(headerDoc, [0]);
+        mergedPdf.addPage(headerPage);
+
+        // 3. Process Attached Documents
+        for (const doc of (application.documents || [])) {
+            const filePath = path.join(__dirname, doc.document_path);
+            if (!await fs.access(filePath).then(() => true).catch(() => false)) continue;
+
+            const ext = path.extname(filePath).toLowerCase();
+            if (ext === '.pdf') {
+                const docBuffer = await fs.readFile(filePath);
+                const pdfToMerge = await PDFDocument.load(docBuffer).catch(e => {
+                    console.error("Failed to load PDF:", filePath, e);
+                    return null;
+                });
+                if (pdfToMerge) {
+                    const pages = await mergedPdf.copyPages(pdfToMerge, pdfToMerge.getPageIndices());
+                    pages.forEach(p => mergedPdf.addPage(p));
+                }
+            } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+                // Wrap image in a PDF page using Puppeteer
+                const imgBase64 = `data:image/${ext.substring(1)};base64,${(await fs.readFile(filePath)).toString('base64')}`;
+                await page.setContent(`<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${imgBase64}" style="max-width:100%;max-height:100%;object-fit:contain;"/></body></html>`);
+                const imgPdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+                const imgDoc = await PDFDocument.load(imgPdfBuffer);
+                const [imgPage] = await mergedPdf.copyPages(imgDoc, [0]);
+                mergedPdf.addPage(imgPage);
+            }
+        }
+
+        await browser.close();
+        browser = null;
+
+        // 4. Add Stamp to EVERY page
+        if (stampPath) {
+            const fullStampPath = path.join(__dirname, stampPath);
+            if (await fs.access(fullStampPath).then(() => true).catch(() => false)) {
+                const stampBuffer = await fs.readFile(fullStampPath);
+                const stampImg = await mergedPdf.embedPng(stampBuffer).catch(() => mergedPdf.embedJpg(stampBuffer));
+
+                const pages = mergedPdf.getPages();
+                for (const p of pages) {
+                    const { width, height } = p.getSize();
+                    const stampWidth = 120;
+                    const stampHeight = (stampImg.height / stampImg.width) * stampWidth;
+
+                    p.drawImage(stampImg, {
+                        x: width - stampWidth - 30,
+                        y: 30,
+                        width: stampWidth,
+                        height: stampHeight,
+                        opacity: 0.8
+                    });
+                }
+            }
+        }
+
+        // 5. Save and Return
+        const outputDir = path.join(__dirname, 'uploads/probate_prayers');
+        await fs.mkdir(outputDir, { recursive: true });
+        const fileName = `prayers_${application.id}_${Date.now()}.pdf`;
+        const outputPath = path.join(outputDir, fileName);
+
+        const finalPdfBytes = await mergedPdf.save();
+        await fs.writeFile(outputPath, finalPdfBytes);
+
+        return `/uploads/probate_prayers/${fileName}`;
+
+    } catch (error) {
+        if (browser) await browser.close();
+        console.error('Probate Prayers Generation Error:', error);
+        throw error;
+    }
+}
+
+module.exports = { generateAffidavitPDF, generateProbateLetterPDF, generateProbatePrayersPDF, GENERATOR_VERSION };
