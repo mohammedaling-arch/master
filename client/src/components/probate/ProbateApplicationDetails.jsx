@@ -138,6 +138,7 @@ const ProbateApplicationDetails = ({ applicationId, onBack, isMobile, user, staf
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState('deceased');
 
     // Modal States
     const [activeModal, setActiveModal] = useState(null);
@@ -146,6 +147,7 @@ const ProbateApplicationDetails = ({ applicationId, onBack, isMobile, user, staf
     const [configs, setConfigs] = useState([]);
     const [uploadingDoc, setUploadingDoc] = useState(null);
     const [showErrorModal, setShowErrorModal] = useState(false);
+    const [loadingPrayers, setLoadingPrayers] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deletingDocId, setDeletingDocId] = useState(null);
     const [viewingDoc, setViewingDoc] = useState(null);
@@ -442,565 +444,690 @@ const ProbateApplicationDetails = ({ applicationId, onBack, isMobile, user, staf
                             </div>
                         )}
                     </div>
+
+                    {/* Prayers Download for Staff only on Maturity */}
+                    {staffMode && (application.approval_date || (application.status === 'approved' && application.updated_at)) && (() => {
+                        const dateVal = application.approval_date || application.updated_at;
+                        const approval = new Date(dateVal);
+                        const today = new Date();
+                        approval.setHours(0, 0, 0, 0);
+                        today.setHours(0, 0, 0, 0);
+                        const diffDays = Math.floor((today - approval) / (1000 * 60 * 60 * 24));
+
+                        if (diffDays >= 21) {
+                            return (
+                                <button
+                                    onClick={async () => {
+                                        if (loadingPrayers) return;
+                                        setLoadingPrayers(true);
+                                        try {
+                                            const res = await api.get(`/staff/probate/${application.id}/prayers-pdf`);
+                                            if (res.data.path) {
+                                                setViewingDoc({
+                                                    document_name: `Prayers - ${application.deceased_name}`,
+                                                    document_path: res.data.path
+                                                });
+                                            }
+                                        } catch (err) {
+                                            console.error("Failed to load prayers:", err);
+                                            alert("Failed to load Prayers document.");
+                                        } finally {
+                                            setLoadingPrayers(false);
+                                        }
+                                    }}
+                                    disabled={loadingPrayers}
+                                    style={{
+                                        marginTop: '10px',
+                                        padding: '8px 16px',
+                                        fontSize: '13px',
+                                        fontWeight: 'bold',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        background: '#dcfce7',
+                                        color: '#166534',
+                                        border: '1px solid #bbf7d0',
+                                        borderRadius: '8px',
+                                        cursor: loadingPrayers ? 'not-allowed' : 'pointer',
+                                        opacity: loadingPrayers ? 0.7 : 1,
+                                        width: 'fit-content'
+                                    }}
+                                >
+                                    {loadingPrayers ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                                    {loadingPrayers ? 'Generating...' : 'Download Prayers'}
+                                </button>
+                            );
+                        }
+                        return null;
+                    })()}
                 </div>
             </div>
 
-            {/* Deceased Details */}
-            <Section title="Deceased Details" icon={<User size={20} />}>
-                <div style={{ position: 'relative' }}>
+            {/* Tab Navigation */}
+            <div style={{
+                display: 'flex',
+                gap: '1rem',
+                marginBottom: '2rem',
+                borderBottom: '1px solid #e5e7eb',
+                paddingBottom: '0.5rem',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                scrollbarWidth: 'none'
+            }}>
+                {[
+                    { id: 'deceased', label: 'Deceased', icon: <User size={16} /> },
+                    { id: 'nok', label: 'Next of Kin', icon: <Briefcase size={16} /> },
+                    { id: 'beneficiaries', label: 'Beneficiaries', icon: <Users size={16} /> },
+                    { id: 'sureties', label: 'Sureties', icon: <Shield size={16} /> },
+                    { id: 'estate', label: 'Estate', icon: <Home size={16} /> },
+                    { id: 'documents', label: 'Documents', icon: <FileText size={16} /> },
+                    { id: 'payments', label: 'Payments', icon: <CreditCard size={16} /> }
+                ].map(tab => (
                     <button
-                        onClick={() => openModal('deceased')}
-                        style={{ position: 'absolute', top: '-3rem', right: 0, padding: '0.5rem', borderRadius: '8px', border: '1px solid #e5e7eb', background: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '12px' }}
-                    >
-                        <Pencil size={14} /> Edit Details
-                    </button>
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.5rem' }}>
-                        <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Full Name</p><p style={{ fontWeight: '600', textTransform: 'uppercase' }}>{application.deceased_name}</p></div>
-                        <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Date of Death</p><p style={{ fontWeight: '600' }}>{formatDate(application.date_of_death).split(' ')[0]}</p></div>
-                        <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Occupation</p><p style={{ fontWeight: '600' }}>{application.occupation}</p></div>
-                        {application.employer_name && <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Employer</p><p style={{ fontWeight: '600' }}>{application.employer_name} ({application.employer_address})</p></div>}
-                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Home Address</p><p style={{ fontWeight: '600' }}>{application.home_address}</p></div>
-                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Place of Death</p><p style={{ fontWeight: '600' }}>{application.death_location_address || 'Not specified'}</p></div>
-                    </div>
-                </div>
-            </Section>
-
-            {/* Next of Kin */}
-            <Section title="Next of Kin Information" icon={<Briefcase size={20} />}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'flex-start' }}>
-                    <div style={{ position: 'relative' }}>
-                        <div style={{
-                            width: '120px',
-                            height: '120px',
-                            borderRadius: '12px',
-                            background: '#f3f4f6',
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        style={{
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            overflow: 'hidden',
-                            border: '1px solid #e5e7eb'
-                        }}>
-                            {application.applicant_profile_pic ? (
-                                <img
-                                    src={application.applicant_profile_pic}
-                                    alt="Applicant"
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                            ) : (
-                                <div style={{ textAlign: 'center', padding: '10px' }}>
-                                    <User size={30} color="#9ca3af" />
-                                    <p style={{ color: '#ef4444', fontSize: '10px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}>PICTURE IS MANDATORY</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.5rem' }}>
-                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 1' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Applicant Name</p><p style={{ fontWeight: '600', textTransform: 'uppercase' }}>{application.applicant_first_name || application.first_name} {application.applicant_surname || application.surname}</p></div>
-                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 1' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Relationship</p><p style={{ fontWeight: '600' }}>{application.relationship_to_nok}</p></div>
-                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 1' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>NIN Number</p><p style={{ fontWeight: '600' }}>{application.applicant_nin || application.nin}</p></div>
-
-                        <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Gender</p><p style={{ fontWeight: '600', textTransform: 'capitalize' }}>{application.applicant_gender || application.gender}</p></div>
-                        <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Age</p><p style={{ fontWeight: '600' }}>{application.applicant_age || application.age} Years</p></div>
-                        <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Phone</p><p style={{ fontWeight: '600' }}>{application.applicant_phone || application.phone}</p></div>
-
-                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Email</p><p style={{ fontWeight: '600' }}>{application.applicant_email || application.email}</p></div>
-                        <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Filed By</p><p style={{ fontWeight: '600', color: application.filed_by_name ? '#10b981' : '#778eaeff', textTransform: 'uppercase' }}>{application.filed_by_name ? 'Registry' : 'Self (Online)'}</p></div>
-                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Residential Address</p><p style={{ fontWeight: '600' }}>{application.applicant_address || application.address}</p></div>
-                    </div>
-                </div>
-            </Section>
-
-            {/* Beneficiaries */}
-            <Section title="Beneficiaries" icon={<Users size={20} />} onAdd={() => openModal('beneficiary')}>
-                {application.beneficiaries?.length > 0 ? (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ background: '#f9fafb', textAlign: 'left' }}>
-                                    <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Name</th>
-                                    <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Relationship</th>
-                                    <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Age/Gender</th>
-                                    <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Phone</th>
-                                    <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563', textAlign: 'right' }}>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {application.beneficiaries.map(b => (
-                                    <tr key={b.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                        <td style={{ padding: '0.75rem', textTransform: 'uppercase' }}>{b.name}</td>
-                                        <td style={{ padding: '0.75rem' }}>{b.relationship}</td>
-                                        <td style={{ padding: '0.75rem' }}>{b.age}Y • {b.gender}</td>
-                                        <td style={{ padding: '0.75rem' }}>{b.phone || 'N/A'}</td>
-                                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                                            <button onClick={() => openModal('beneficiary', b)} style={{ color: '#3b82f6', marginRight: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}><Pencil size={14} /></button>
-                                            <button onClick={() => handleDelete('beneficiaries', b.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No beneficiaries listed yet.</p>}
-            </Section>
-
-            {/* Sureties */}
-            <Section
-                title="Sureties (Minimum 2)"
-                icon={<Shield size={20} />}
-                onAdd={() => openModal('surety')}
-                extraAction={application.sureties?.length >= 2 && (
-                    <button
-                        onClick={() => generateSuretyFormPDF({ application, sureties: application.sureties })}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            fontSize: '13px', color: 'white', fontWeight: 'bold',
-                            background: '#2ecc71', border: 'none', cursor: 'pointer',
-                            padding: '8px 16px', borderRadius: '8px',
-                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                            gap: '8px',
+                            padding: '10px 20px',
+                            border: 'none',
+                            background: activeTab === tab.id ? '#3b82f6' : 'transparent',
+                            color: activeTab === tab.id ? 'white' : '#6b7280',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            transition: 'all 0.2s',
+                            boxShadow: activeTab === tab.id ? '0 4px 6px -1px rgba(59, 130, 246, 0.4)' : 'none'
                         }}
                     >
-                        <Download size={16} /> Download Surety Form
+                        {tab.icon}
+                        {tab.label}
                     </button>
-                )}
-            >
-                {application.sureties?.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                        {application.sureties.map(s => (
-                            <div key={s.id} style={{
+                ))}
+            </div>
+
+            {/* Deceased Details */}
+            {activeTab === 'deceased' && (
+                <Section title="Deceased Details" icon={<User size={20} />}>
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            onClick={() => openModal('deceased')}
+                            style={{ position: 'absolute', top: '-3rem', right: 0, padding: '0.5rem', borderRadius: '8px', border: '1px solid #e5e7eb', background: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '12px' }}
+                        >
+                            <Pencil size={14} /> Edit Details
+                        </button>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                            <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Full Name</p><p style={{ fontWeight: '600', textTransform: 'uppercase' }}>{application.deceased_name}</p></div>
+                            <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Date of Death</p><p style={{ fontWeight: '600' }}>{formatDate(application.date_of_death).split(' ')[0]}</p></div>
+                            <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Occupation</p><p style={{ fontWeight: '600' }}>{application.occupation}</p></div>
+                            {application.employer_name && <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Employer</p><p style={{ fontWeight: '600' }}>{application.employer_name} ({application.employer_address})</p></div>}
+                            <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Home Address</p><p style={{ fontWeight: '600' }}>{application.home_address}</p></div>
+                            <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Place of Death</p><p style={{ fontWeight: '600' }}>{application.death_location_address || 'Not specified'}</p></div>
+                        </div>
+                    </div>
+                </Section>
+            )}
+
+            {/* Next of Kin */}
+            {activeTab === 'nok' && (
+                <Section title="Next of Kin Information" icon={<Briefcase size={20} />}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'flex-start' }}>
+                        <div style={{ position: 'relative' }}>
+                            <div style={{
+                                width: '120px',
+                                height: '120px',
+                                borderRadius: '12px',
+                                background: '#f3f4f6',
                                 display: 'flex',
-                                flexDirection: isMobile ? 'column' : 'row',
-                                gap: '1.5rem',
-                                padding: '1.5rem',
-                                background: '#f9fafb',
-                                borderRadius: '16px',
-                                border: '1px solid #e5e7eb',
-                                position: 'relative'
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                overflow: 'hidden',
+                                border: '1px solid #e5e7eb'
                             }}>
-                                <div style={{
-                                    width: '120px',
-                                    height: '120px',
-                                    borderRadius: '12px',
-                                    background: 'white',
+                                {application.applicant_profile_pic ? (
+                                    <img
+                                        src={application.applicant_profile_pic}
+                                        alt="Applicant"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '10px' }}>
+                                        <User size={30} color="#9ca3af" />
+                                        <p style={{ color: '#ef4444', fontSize: '10px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}>PICTURE IS MANDATORY</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                            <div style={{ gridColumn: isMobile ? 'auto' : 'span 1' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Applicant Name</p><p style={{ fontWeight: '600', textTransform: 'uppercase' }}>{application.applicant_first_name || application.first_name} {application.applicant_surname || application.surname}</p></div>
+                            <div style={{ gridColumn: isMobile ? 'auto' : 'span 1' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Relationship</p><p style={{ fontWeight: '600' }}>{application.relationship_to_nok}</p></div>
+                            <div style={{ gridColumn: isMobile ? 'auto' : 'span 1' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>NIN Number</p><p style={{ fontWeight: '600' }}>{application.applicant_nin || application.nin}</p></div>
+
+                            <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Gender</p><p style={{ fontWeight: '600', textTransform: 'capitalize' }}>{application.applicant_gender || application.gender}</p></div>
+                            <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Age</p><p style={{ fontWeight: '600' }}>{application.applicant_age || application.age} Years</p></div>
+                            <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Phone</p><p style={{ fontWeight: '600' }}>{application.applicant_phone || application.phone}</p></div>
+
+                            <div style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Email</p><p style={{ fontWeight: '600' }}>{application.applicant_email || application.email}</p></div>
+                            <div><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Filed By</p><p style={{ fontWeight: '600', color: application.filed_by_name ? '#10b981' : '#778eaeff', textTransform: 'uppercase' }}>{application.filed_by_name ? 'Registry' : 'Self (Online)'}</p></div>
+                            <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}><p style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Residential Address</p><p style={{ fontWeight: '600' }}>{application.applicant_address || application.address}</p></div>
+                        </div>
+                    </div>
+                </Section>
+            )}
+
+            {/* Beneficiaries */}
+            {activeTab === 'beneficiaries' && (
+                <Section title="Beneficiaries" icon={<Users size={20} />} onAdd={() => openModal('beneficiary')}>
+                    {application.beneficiaries?.length > 0 ? (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ background: '#f9fafb', textAlign: 'left' }}>
+                                        <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Name</th>
+                                        <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Relationship</th>
+                                        <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Age/Gender</th>
+                                        <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563' }}>Phone</th>
+                                        <th style={{ padding: '0.75rem', fontSize: '12px', color: '#4b5563', textAlign: 'right' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {application.beneficiaries.map(b => (
+                                        <tr key={b.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                            <td style={{ padding: '0.75rem', textTransform: 'uppercase' }}>{b.name}</td>
+                                            <td style={{ padding: '0.75rem' }}>{b.relationship}</td>
+                                            <td style={{ padding: '0.75rem' }}>{b.age}Y • {b.gender}</td>
+                                            <td style={{ padding: '0.75rem' }}>{b.phone || 'N/A'}</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                                                <button onClick={() => openModal('beneficiary', b)} style={{ color: '#3b82f6', marginRight: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}><Pencil size={14} /></button>
+                                                <button onClick={() => handleDelete('beneficiaries', b.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No beneficiaries listed yet.</p>}
+                </Section>
+            )}
+
+            {/* Sureties */}
+            {activeTab === 'sureties' && (
+                <Section
+                    title="Sureties (Minimum 2)"
+                    icon={<Shield size={20} />}
+                    onAdd={() => openModal('surety')}
+                    extraAction={application.sureties?.length >= 2 && (
+                        <button
+                            onClick={() => generateSuretyFormPDF({ application, sureties: application.sureties })}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                fontSize: '13px', color: 'white', fontWeight: 'bold',
+                                background: '#2ecc71', border: 'none', cursor: 'pointer',
+                                padding: '8px 16px', borderRadius: '8px',
+                                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                            }}
+                        >
+                            <Download size={16} /> Download Surety Form
+                        </button>
+                    )}
+                >
+                    {application.sureties?.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            {application.sureties.map(s => (
+                                <div key={s.id} style={{
                                     display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    overflow: 'hidden',
+                                    flexDirection: isMobile ? 'column' : 'row',
+                                    gap: '1.5rem',
+                                    padding: '1.5rem',
+                                    background: '#f9fafb',
+                                    borderRadius: '16px',
                                     border: '1px solid #e5e7eb',
-                                    flexShrink: 0
+                                    position: 'relative'
                                 }}>
-                                    {s.picture_path ? (
-                                        <img src={s.picture_path} alt="Surety" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <div style={{ textAlign: 'center', padding: '10px' }}>
-                                            <User size={30} color="#9ca3af" />
-                                            <p style={{ color: '#ef4444', fontSize: '10px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}>PICTURE IS MANDATORY</p>
+                                    <div style={{
+                                        width: '120px',
+                                        height: '120px',
+                                        borderRadius: '12px',
+                                        background: 'white',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        overflow: 'hidden',
+                                        border: '1px solid #e5e7eb',
+                                        flexShrink: 0
+                                    }}>
+                                        {s.picture_path ? (
+                                            <img src={s.picture_path} alt="Surety" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <div style={{ textAlign: 'center', padding: '10px' }}>
+                                                <User size={30} color="#9ca3af" />
+                                                <p style={{ color: '#ef4444', fontSize: '10px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}>PICTURE IS MANDATORY</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.25rem' }}>
+                                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}>
+                                            <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Full Name</p>
+                                            <p style={{ fontWeight: '700', fontSize: '16px', textTransform: 'uppercase' }}>{s.name}</p>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Status</p>
+                                            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                                <span style={{
+                                                    fontSize: '11px',
+                                                    padding: '4px 10px',
+                                                    borderRadius: '12px',
+                                                    fontWeight: '600',
+                                                    background: s.acceptance === 'accepted' ? '#dcfce7' : s.acceptance === 'rejected' ? '#fee2e2' : '#f1f5f9',
+                                                    color: s.acceptance === 'accepted' ? '#166534' : s.acceptance === 'rejected' ? '#991b1b' : '#778eaeff',
+                                                    display: 'inline-block'
+                                                }}>
+                                                    {s.acceptance ? s.acceptance.charAt(0).toUpperCase() + s.acceptance.slice(1) : 'Pending'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Networth</p>
+                                            <p style={{ fontWeight: '600', color: '#059669' }}>₦{Number(s.networth).toLocaleString()}</p>
+                                        </div>
+                                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}>
+                                            <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Residential Address</p>
+                                            <p style={{ fontSize: '14px' }}>{s.address}</p>
+                                        </div>
+                                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}>
+                                            <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Phone</p>
+                                            <p style={{ fontSize: '13px', color: '#4b5563' }}>{s.phone || 'N/A.'}</p>
+                                        </div>
+                                        <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}>
+                                            <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Remark / Notes</p>
+                                            <p style={{ fontSize: '13px', color: '#4b5563', fontStyle: 'italic' }}>{s.remark || 'No additional remarks.'}</p>
+                                        </div>
+
+                                    </div>
+                                    {(!s.acceptance || s.acceptance !== 'Accepted') && (
+                                        <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
+                                            <button onClick={() => openModal('surety', s)} style={{ padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', color: '#3b82f6', cursor: 'pointer' }}><Pencil size={14} /></button>
+                                            <button onClick={() => handleDelete('sureties', s.id)} style={{ padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={14} /></button>
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.25rem' }}>
-                                    <div style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}>
-                                        <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Full Name</p>
-                                        <p style={{ fontWeight: '700', fontSize: '16px', textTransform: 'uppercase' }}>{s.name}</p>
-                                    </div>
-                                    <div>
-                                        <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Status</p>
-                                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                            <span style={{
-                                                fontSize: '11px',
-                                                padding: '4px 10px',
-                                                borderRadius: '12px',
-                                                fontWeight: '600',
-                                                background: s.acceptance === 'accepted' ? '#dcfce7' : s.acceptance === 'rejected' ? '#fee2e2' : '#f1f5f9',
-                                                color: s.acceptance === 'accepted' ? '#166534' : s.acceptance === 'rejected' ? '#991b1b' : '#778eaeff',
-                                                display: 'inline-block'
-                                            }}>
-                                                {s.acceptance ? s.acceptance.charAt(0).toUpperCase() + s.acceptance.slice(1) : 'Pending'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Networth</p>
-                                        <p style={{ fontWeight: '600', color: '#059669' }}>₦{Number(s.networth).toLocaleString()}</p>
-                                    </div>
-                                    <div style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}>
-                                        <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Residential Address</p>
-                                        <p style={{ fontSize: '14px' }}>{s.address}</p>
-                                    </div>
-                                    <div style={{ gridColumn: isMobile ? 'auto' : 'span 3' }}>
-                                        <p style={{ fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Remark / Notes</p>
-                                        <p style={{ fontSize: '13px', color: '#4b5563', fontStyle: 'italic' }}>{s.remark || 'No additional remarks.'}</p>
-                                    </div>
-                                </div>
-                                {(!s.acceptance || s.acceptance !== 'Accepted') && (
-                                    <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
-                                        <button onClick={() => openModal('surety', s)} style={{ padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', color: '#3b82f6', cursor: 'pointer' }}><Pencil size={14} /></button>
-                                        <button onClick={() => handleDelete('sureties', s.id)} style={{ padding: '0.5rem', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={14} /></button>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No sureties provided yet.</p>}
-            </Section>
+                            ))}
+                        </div>
+                    ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No sureties provided yet.</p>}
+                </Section>
+            )}
 
             {/* Estate / Properties */}
-            <Section title="Estate / Properties" icon={<Home size={20} />} onAdd={() => openModal('property')}>
-                {application.properties?.length > 0 ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '1.25rem' }}>
-                        {application.properties.map(p => (
-                            <div key={p.id} style={{
-                                padding: '1.25rem',
-                                background: '#f9fafb',
-                                borderRadius: '16px',
-                                border: '1px solid #e5e7eb',
-                                position: 'relative'
-                            }}>
-                                <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
-                                    <button onClick={() => openModal('property', p)} style={{ color: '#3b82f6', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px' }}><Pencil size={14} /></button>
-                                    <button onClick={() => handleDelete('properties', p.id)} style={{ color: '#ef4444', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px' }}><Trash2 size={14} /></button>
-                                </div>
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <span style={{
-                                        padding: '4px 10px',
-                                        borderRadius: '20px',
-                                        fontSize: '10px',
-                                        fontWeight: 'bold',
-                                        background: p.estate_type === 'Property' ? '#dcfce7' : p.estate_type === 'Bank/Pension Account' ? '#eff6ff' : '#fef2f2',
-                                        color: p.estate_type === 'Property' ? '#166534' : p.estate_type === 'Bank/Pension Account' ? '#1e40af' : '#991b1b',
-                                        textTransform: 'uppercase'
-                                    }}>
-                                        {p.estate_type}
-                                    </span>
-                                </div>
+            {activeTab === 'estate' && (
+                <Section title="Estate / Properties" icon={<Home size={20} />} onAdd={() => openModal('property')}>
+                    {application.properties?.length > 0 ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '1.25rem' }}>
+                            {application.properties.map(p => (
+                                <div key={p.id} style={{
+                                    padding: '1.25rem',
+                                    background: '#f9fafb',
+                                    borderRadius: '16px',
+                                    border: '1px solid #e5e7eb',
+                                    position: 'relative'
+                                }}>
+                                    <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
+                                        <button onClick={() => openModal('property', p)} style={{ color: '#3b82f6', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px' }}><Pencil size={14} /></button>
+                                        <button onClick={() => handleDelete('properties', p.id)} style={{ color: '#ef4444', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px' }}><Trash2 size={14} /></button>
+                                    </div>
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <span style={{
+                                            padding: '4px 10px',
+                                            borderRadius: '20px',
+                                            fontSize: '10px',
+                                            fontWeight: 'bold',
+                                            background: p.estate_type === 'Property' ? '#dcfce7' : p.estate_type === 'Bank/Pension Account' ? '#eff6ff' : '#fef2f2',
+                                            color: p.estate_type === 'Property' ? '#166534' : p.estate_type === 'Bank/Pension Account' ? '#1e40af' : '#991b1b',
+                                            textTransform: 'uppercase'
+                                        }}>
+                                            {p.estate_type}
+                                        </span>
+                                    </div>
 
-                                {p.estate_type === 'Property' && (
-                                    <>
-                                        <p style={{ fontWeight: '700', fontSize: '16px', marginBottom: '0.25rem' }}>{p.property_name}</p>
-                                        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '1rem' }}>{p.property_address}</p>
-                                        {(p.property_value !== null && p.property_value !== '' && p.property_value !== undefined) && (
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
-                                                <span style={{ fontSize: '12px', color: '#6b7280' }}>Value:</span>
-                                                <span style={{ fontWeight: '600', color: '#059669' }}>₦{Number(p.property_value).toLocaleString()}</span>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
+                                    {p.estate_type === 'Property' && (
+                                        <>
+                                            <p style={{ fontWeight: '700', fontSize: '16px', marginBottom: '0.25rem' }}>{p.property_name}</p>
+                                            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '1rem' }}>{p.property_address}</p>
+                                            {(p.property_value !== null && p.property_value !== '' && p.property_value !== undefined) && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
+                                                    <span style={{ fontSize: '12px', color: '#6b7280' }}>Value:</span>
+                                                    <span style={{ fontWeight: '600', color: '#059669' }}>₦{Number(p.property_value).toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
 
-                                {p.estate_type === 'Bank/Pension Account' && (
-                                    <>
-                                        <p style={{ fontWeight: '700', fontSize: '16px', marginBottom: '0.25rem' }}>{p.bank_name}</p>
-                                        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '0.25rem' }}>Acc Name: <b>{p.bank_account_name}</b></p>
-                                        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '1rem' }}>Acc No: <b>{p.bank_account}</b></p>
-                                        {(p.bank_balance !== null && p.bank_balance !== '' && p.bank_balance !== undefined) && (
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
-                                                <span style={{ fontSize: '12px', color: '#6b7280' }}>Balance/Value:</span>
-                                                <span style={{ fontWeight: '600', color: '#059669' }}>₦{Number(p.bank_balance).toLocaleString()}</span>
-                                            </div>
-                                        )}
+                                    {p.estate_type === 'Bank/Pension Account' && (
+                                        <>
+                                            <p style={{ fontWeight: '700', fontSize: '16px', marginBottom: '0.25rem' }}>{p.bank_name}</p>
+                                            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '0.25rem' }}>Acc Name: <b>{p.bank_account_name}</b></p>
+                                            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '1rem' }}>Acc No: <b>{p.bank_account}</b></p>
+                                            {(p.bank_balance !== null && p.bank_balance !== '' && p.bank_balance !== undefined) && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
+                                                    <span style={{ fontSize: '12px', color: '#6b7280' }}>Balance/Value:</span>
+                                                    <span style={{ fontWeight: '600', color: '#059669' }}>₦{Number(p.bank_balance).toLocaleString()}</span>
+                                                </div>
+                                            )}
 
-                                        <button
-                                            onClick={() => generateBankRequestLetterPDF({ application, bankInfo: p })}
-                                            style={{
-                                                marginTop: '1rem',
-                                                width: '100%',
-                                                padding: '0.6rem',
-                                                background: '#3b82f6',
-                                                color: 'white',
-                                                borderRadius: '8px',
-                                                border: 'none',
-                                                fontSize: '12px',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                gap: '0.5rem',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <Download size={14} /> Download Balance Request Letter
-                                        </button>
-                                    </>
-                                )}
-
-                                {p.estate_type === 'Share Divident' && (
-                                    <>
-                                        <p style={{ fontWeight: '700', fontSize: '16px', marginBottom: '0.25rem' }}>{p.broker_name}</p>
-                                        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '0.25rem' }}>Reg Name: <b>{p.broker_account_name}</b></p>
-                                        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '1rem' }}>Reg No: <b>{p.broker_account}</b></p>
-                                        {(p.share_value !== null && p.share_value !== '' && p.share_value !== undefined) && (
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
-                                                <span style={{ fontSize: '12px', color: '#6b7280' }}>Market Value:</span>
-                                                <span style={{ fontWeight: '600', color: '#059669' }}>₦{Number(p.share_value).toLocaleString()}</span>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-
-                                {p.remark && (
-                                    <p style={{ marginTop: '0.75rem', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Note: {p.remark}</p>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No estate or property details added yet.</p>}
-            </Section>
-
-            {/* Documents */}
-            <Section title="Required Documents" icon={<FileText size={20} />} onAdd={() => openModal('new_doc')}>
-                <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead>
-                            <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                                <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Document Name</th>
-                                <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Requirement</th>
-                                <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Fee</th>
-                                <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Status</th>
-                                <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Remarks</th>
-                                <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {configs.map(config => {
-                                const uploaded = application.documents?.find(d => d.document_name === config.document_name);
-                                return (
-                                    <tr key={config.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>{config.document_name}</div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span style={{
-                                                fontSize: '11px',
-                                                fontWeight: 'bold',
-                                                color: config.is_required ? '#ef4444' : '#6b7280',
-                                                background: config.is_required ? '#fef2f2' : '#f3f4f6',
-                                                padding: '4px 8px',
-                                                borderRadius: '4px'
-                                            }}>
-                                                {config.is_required ? 'REQUIRED' : 'OPTIONAL'}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>
-                                                {config.document_fee > 0 ? `₦${config.document_fee.toLocaleString()}` : 'Free'}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                <div style={{
-                                                    fontSize: '11px',
+                                            <button
+                                                onClick={() => generateBankRequestLetterPDF({ application, bankInfo: p })}
+                                                style={{
+                                                    marginTop: '1rem',
+                                                    width: '100%',
+                                                    padding: '0.6rem',
+                                                    background: '#3b82f6',
+                                                    color: 'white',
+                                                    borderRadius: '8px',
+                                                    border: 'none',
+                                                    fontSize: '12px',
                                                     fontWeight: 'bold',
-                                                    color: uploaded ? '#059669' : '#9ca3af',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: '6px'
-                                                }}>
-                                                    {uploaded ? <CheckCircle size={14} /> : <Clock size={14} />}
-                                                    {uploaded ? 'UPLOADED' : 'NOT UPLOADED'}
-                                                </div>
-                                                {uploaded && uploaded.document_pay > 0 && (
-                                                    <div style={{
-                                                        fontSize: '10px',
-                                                        fontWeight: 'bold',
-                                                        color: uploaded.pay_status === 'paid' ? '#059669' : '#ef4444',
-                                                        background: uploaded.pay_status === 'paid' ? '#ecfdf5' : '#fef2f2',
-                                                        padding: '2px 6px',
-                                                        borderRadius: '4px',
-                                                        display: 'inline-block',
-                                                        width: 'fit-content'
-                                                    }}>
-                                                        {uploaded.pay_status?.toUpperCase()}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontSize: '12px', color: '#4b5563', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={uploaded?.remark || ''}>
-                                                {uploaded?.remark || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No remarks</span>}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                {uploaded ? (
-                                                    <>
-                                                        <button
-                                                            onClick={() => setViewingDoc(uploaded)}
-                                                            style={{
-                                                                color: '#3b82f6',
-                                                                fontSize: '13px',
-                                                                fontWeight: '600',
-                                                                textDecoration: 'none',
-                                                                padding: '6px 12px',
-                                                                border: '1px solid #3b82f6',
-                                                                borderRadius: '6px',
-                                                                background: 'transparent',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '6px',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            <Eye size={14} /> View
-                                                        </button>
-                                                        {uploaded.pay_status === 'unpaid' && (
-                                                            <button
-                                                                onClick={() => setPayingDoc(uploaded)}
-                                                                style={{ background: '#27ae60', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}
-                                                            >
-                                                                Pay Fee
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleDeleteDocument(uploaded.id)}
-                                                            disabled={saving}
-                                                            title="Delete Document"
-                                                            style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => setUploadModalTarget(config.document_name)}
-                                                        disabled={saving}
-                                                        style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                                                    >
-                                                        Upload
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            {/* Additional Documents */}
-                            {application.documents?.filter(d => !configs.find(c => c.document_name === d.document_name)).map(doc => (
-                                <tr key={doc.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                    <td style={{ padding: '1rem' }}>
-                                        <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>{doc.document_name}</div>
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <span style={{
-                                            fontSize: '11px',
-                                            fontWeight: 'bold',
-                                            color: '#778eaeff',
-                                            background: '#f1f5f9',
-                                            padding: '4px 8px',
-                                            borderRadius: '4px'
-                                        }}>ADDITIONAL</span>
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <CheckCircle size={14} /> UPLOADED
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <div style={{ fontSize: '12px', color: '#4b5563', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.remark || ''}>
-                                            {doc.remark || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No remarks</span>}
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                            <a href={`${api.defaults.baseURL.replace('/api', '')}${doc.document_path}`} target="_blank" rel="noreferrer" style={{
-                                                color: '#3b82f6',
-                                                fontSize: '13px',
-                                                fontWeight: '600',
-                                                textDecoration: 'none',
-                                                padding: '6px 12px',
-                                                border: '1px solid #3b82f6',
-                                                borderRadius: '6px'
-                                            }}>View</a>
-                                            <button
-                                                onClick={() => handleDeleteDocument(doc.id)}
-                                                disabled={saving}
-                                                title="Delete Document"
-                                                style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', padding: '8px', borderRadius: '6px' }}
+                                                    justifyContent: 'center',
+                                                    gap: '0.5rem',
+                                                    cursor: 'pointer'
+                                                }}
                                             >
-                                                <Trash2 size={14} />
+                                                <Download size={14} /> Download Balance Request Letter
                                             </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </Section>
+                                        </>
+                                    )}
 
-            {/* Payments */}
-            <Section title="Payment History" icon={<CreditCard size={20} />}>
-                {application.payments?.length > 0 ? (
+                                    {p.estate_type === 'Share Divident' && (
+                                        <>
+                                            <p style={{ fontWeight: '700', fontSize: '16px', marginBottom: '0.25rem' }}>{p.broker_name}</p>
+                                            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '0.25rem' }}>Reg Name: <b>{p.broker_account_name}</b></p>
+                                            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '1rem' }}>Reg No: <b>{p.broker_account}</b></p>
+                                            {(p.share_value !== null && p.share_value !== '' && p.share_value !== undefined) && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
+                                                    <span style={{ fontSize: '12px', color: '#6b7280' }}>Market Value:</span>
+                                                    <span style={{ fontWeight: '600', color: '#059669' }}>₦{Number(p.share_value).toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {p.remark && (
+                                        <p style={{ marginTop: '0.75rem', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Note: {p.remark}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No estate or property details added yet.</p>}
+                </Section>
+            )}
+
+            {/* Documents */}
+            {activeTab === 'documents' && (
+                <Section title="Required Documents" icon={<FileText size={20} />} onAdd={() => openModal('new_doc')}>
                     <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
                                 <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Transaction ID</th>
-                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Item Details</th>
-                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Amount</th>
+                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Document Name</th>
+                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Requirement</th>
+                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Fee</th>
                                     <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Status</th>
-                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>Receipt</th>
+                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Remarks</th>
+                                    <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {application.payments.map(p => (
-                                    <tr key={p.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                {configs.map(config => {
+                                    const uploaded = application.documents?.find(d => d.document_name === config.document_name);
+                                    return (
+                                        <tr key={config.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>{config.document_name}</div>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span style={{
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    color: config.is_required ? '#ef4444' : '#6b7280',
+                                                    background: config.is_required ? '#fef2f2' : '#f3f4f6',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px'
+                                                }}>
+                                                    {config.is_required ? 'REQUIRED' : 'OPTIONAL'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                                    {config.document_fee > 0 ? `₦${config.document_fee.toLocaleString()}` : 'Free'}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div style={{
+                                                        fontSize: '11px',
+                                                        fontWeight: 'bold',
+                                                        color: uploaded ? '#059669' : '#9ca3af',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px'
+                                                    }}>
+                                                        {uploaded ? <CheckCircle size={14} /> : <Clock size={14} />}
+                                                        {uploaded ? 'UPLOADED' : 'NOT UPLOADED'}
+                                                    </div>
+                                                    {uploaded && uploaded.document_pay > 0 && (
+                                                        <div style={{
+                                                            fontSize: '10px',
+                                                            fontWeight: 'bold',
+                                                            color: uploaded.pay_status === 'paid' ? '#059669' : '#ef4444',
+                                                            background: uploaded.pay_status === 'paid' ? '#ecfdf5' : '#fef2f2',
+                                                            padding: '2px 6px',
+                                                            borderRadius: '4px',
+                                                            display: 'inline-block',
+                                                            width: 'fit-content'
+                                                        }}>
+                                                            {uploaded.pay_status?.toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ fontSize: '12px', color: '#4b5563', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={uploaded?.remark || ''}>
+                                                    {uploaded?.remark || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No remarks</span>}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                    {uploaded ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setViewingDoc(uploaded)}
+                                                                style={{
+                                                                    color: '#3b82f6',
+                                                                    fontSize: '13px',
+                                                                    fontWeight: '600',
+                                                                    textDecoration: 'none',
+                                                                    padding: '6px 12px',
+                                                                    border: '1px solid #3b82f6',
+                                                                    borderRadius: '6px',
+                                                                    background: 'transparent',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <Eye size={14} /> View
+                                                            </button>
+                                                            {uploaded.pay_status === 'unpaid' && (
+                                                                <button
+                                                                    onClick={() => setPayingDoc(uploaded)}
+                                                                    style={{ background: '#27ae60', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}
+                                                                >
+                                                                    Pay Fee
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleDeleteDocument(uploaded.id)}
+                                                                disabled={saving}
+                                                                title="Delete Document"
+                                                                style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => setUploadModalTarget(config.document_name)}
+                                                            disabled={saving}
+                                                            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                                                        >
+                                                            Upload
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {/* Additional Documents */}
+                                {application.documents?.filter(d => !configs.find(c => c.document_name === d.document_name)).map(doc => (
+                                    <tr key={doc.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                         <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>{p.transaction_id || 'N/A'}</div>
-                                            <div style={{ fontSize: '11px', color: '#6b7280' }}>{new Date(p.payment_date).toLocaleDateString()}</div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontSize: '14px', color: '#374151' }}>{p.item_paid}</div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: '700', fontSize: '14px', color: '#10b981' }}>₦{Number(p.amount).toLocaleString()}</div>
+                                            <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>{doc.document_name}</div>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <span style={{
                                                 fontSize: '11px',
                                                 fontWeight: 'bold',
+                                                color: '#778eaeff',
+                                                background: '#f1f5f9',
                                                 padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                background: p.payment_status === 'completed' ? '#dcfce7' : '#fee2e2',
-                                                color: p.payment_status === 'completed' ? '#166534' : '#991b1b'
-                                            }}>
-                                                {p.payment_status?.toUpperCase()}
-                                            </span>
+                                                borderRadius: '4px'
+                                            }}>ADDITIONAL</span>
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                                                Free
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <CheckCircle size={14} /> UPLOADED
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ fontSize: '12px', color: '#4b5563', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.remark || ''}>
+                                                {doc.remark || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No remarks</span>}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                            {p.payment_status === 'completed' && (
+                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                <a href={`${api.defaults.baseURL.replace('/api', '')}${doc.document_path}`} target="_blank" rel="noreferrer" style={{
+                                                    color: '#3b82f6',
+                                                    fontSize: '13px',
+                                                    fontWeight: '600',
+                                                    textDecoration: 'none',
+                                                    padding: '6px 12px',
+                                                    border: '1px solid #3b82f6',
+                                                    borderRadius: '6px'
+                                                }}>View</a>
                                                 <button
-                                                    onClick={() => generatePaymentReceiptPDF({
-                                                        user: {
-                                                            first_name: application.applicant_first_name,
-                                                            surname: application.applicant_surname,
-                                                            email: application.applicant_email,
-                                                            phone: application.applicant_phone
-                                                        },
-                                                        payment: p
-                                                    })}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: '1px solid #e5e7eb',
-                                                        padding: '6px 12px',
-                                                        borderRadius: '6px',
-                                                        cursor: 'pointer',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        fontSize: '12px',
-                                                        color: '#4b5563'
-                                                    }}
+                                                    onClick={() => handleDeleteDocument(doc.id)}
+                                                    disabled={saving}
+                                                    title="Delete Document"
+                                                    style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', padding: '8px', borderRadius: '6px' }}
                                                 >
-                                                    <Download size={14} /> Receipt
+                                                    <Trash2 size={14} />
                                                 </button>
-                                            )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No payment records found for this application.</p>}
-            </Section>
+                </Section>
+            )}
+
+            {/* Payments */}
+            {activeTab === 'payments' && (
+                <Section title="Payment History" icon={<CreditCard size={20} />}>
+                    {application.payments?.length > 0 ? (
+                        <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                <thead>
+                                    <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                                        <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Transaction ID</th>
+                                        <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Item Details</th>
+                                        <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Amount</th>
+                                        <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151' }}>Status</th>
+                                        <th style={{ padding: '1rem', fontSize: '13px', fontWeight: 'bold', color: '#374151', textAlign: 'right' }}>Receipt</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {application.payments.map(p => (
+                                        <tr key={p.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>{p.transaction_id || 'N/A'}</div>
+                                                <div style={{ fontSize: '11px', color: '#6b7280' }}>{new Date(p.payment_date).toLocaleDateString()}</div>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ fontSize: '14px', color: '#374151' }}>{p.item_paid}</div>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ fontWeight: '700', fontSize: '14px', color: '#10b981' }}>₦{Number(p.amount).toLocaleString()}</div>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span style={{
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    background: p.payment_status === 'completed' ? '#dcfce7' : '#fee2e2',
+                                                    color: p.payment_status === 'completed' ? '#166534' : '#991b1b'
+                                                }}>
+                                                    {p.payment_status?.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                {p.payment_status === 'completed' && (
+                                                    <button
+                                                        onClick={() => generatePaymentReceiptPDF({
+                                                            user: {
+                                                                first_name: application.applicant_first_name,
+                                                                surname: application.applicant_surname,
+                                                                email: application.applicant_email,
+                                                                phone: application.applicant_phone
+                                                            },
+                                                            payment: p
+                                                        })}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: '1px solid #e5e7eb',
+                                                            padding: '6px 12px',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer',
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            fontSize: '12px',
+                                                            color: '#4b5563'
+                                                        }}
+                                                    >
+                                                        <Download size={14} /> Receipt
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No payment records found for this application.</p>}
+                </Section>
+            )}
 
             {/* Error Modal */}
             {showErrorModal && (
@@ -1141,6 +1268,7 @@ const ProbateApplicationDetails = ({ applicationId, onBack, isMobile, user, staf
                             <div><label style={modalLabel}>Full Name</label><input type="text" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} style={modalInput} required /></div>
                             <div><label style={modalLabel}>Networth (₦)</label><input type="number" value={formData.networth || ''} onChange={e => setFormData({ ...formData, networth: e.target.value })} style={modalInput} required /></div>
                             <div><label style={modalLabel}>Address</label><textarea value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} style={modalInput} rows={2} required /></div>
+                            <div><label style={modalLabel}>Phone</label><input type="text" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} style={modalInput} rows={2} /></div>
                         </div>
                     </Modal>
                 )}

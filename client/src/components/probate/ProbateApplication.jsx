@@ -198,7 +198,7 @@ const ProbateApplication = ({ user, isMobile = false, onComplete = null, isStaff
                                 style={darkInputStyle}
                                 value={formData.deceasedName}
                                 onChange={e => setFormData({ ...formData, deceasedName: e.target.value })}
-                                placeholder="e.g. Alhaji Ibrahim Mohammed"
+                                placeholder="e.g. Alhaji Bukar Kyari"
                             />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem' }}>
@@ -499,8 +499,8 @@ const ProbateApplication = ({ user, isMobile = false, onComplete = null, isStaff
 
 // Styles
 const labelStyle = { display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '13px', fontWeight: '500' };
-const darkInputStyle = { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: 'white', outline: 'none', fontSize: '15px' };
-const nextBtnStyle = (isMobile) => ({ background: '#2ecc71', marginTop: '0', width: isMobile ? '100%' : '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', height: '48px' });
+const darkInputStyle = { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', background: '#383f4fff', color: 'white', outline: 'none', fontSize: '15px' };
+const nextBtnStyle = (isMobile) => ({ background: '#2ecc71', marginTop: '20px', width: isMobile ? '100%' : '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', height: '48px' });
 const backBtnStyle = { background: 'transparent', color: '#94a3b8', border: '1px solid #334155', height: '48px', padding: '0 2rem' };
 const navBtnContainer = (isMobile) => ({ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '1rem', marginTop: '2.5rem', justifyContent: 'space-between' });
 const darkUploadBox = (isMobile) => ({ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '1.5rem', padding: '1.5rem', border: '1px solid #334155', borderRadius: '16px', background: 'rgba(15, 23, 42, 0.3)', textAlign: isMobile ? 'center' : 'left' });

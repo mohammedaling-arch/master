@@ -67,6 +67,7 @@ const CRApplicationDetails = ({ appId, onBack, onSuccess }) => {
     const [submitting, setSubmitting] = useState(false);
     const { showModal } = useModal();
     const [viewingDoc, setViewingDoc] = useState(null);
+    const [activeTab, setActiveTab] = useState('deceased');
 
     useEffect(() => {
         fetchDetails();
@@ -162,26 +163,52 @@ const CRApplicationDetails = ({ appId, onBack, onSuccess }) => {
                 <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '8px', borderRadius: '8px', color: '#3b82f6' }}>
                     {icon}
                 </div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'rgb\(18 37 74\)' }}>{title}</h3>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'rgb(18 37 74)' }}>{title}</h3>
             </div>
             {children}
         </div>
     );
 
     const DetailRow = ({ label, value }) => (
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '14px', borderBottom: '1px solid #f8fafc' }}>
-            <span style={{ color: '#778eaeff' }}>{label}</span>
-            <span style={{ color: 'rgb\(18 37 74\)', fontWeight: '500', textAlign: 'right' }}>{value || 'N/A'}</span>
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', padding: '0.75rem 0', fontSize: '13px', borderBottom: '1px solid #f1f5f9', gap: '1rem', alignItems: 'flex-start' }}>
+            <span style={{ color: '#64748b', fontWeight: '500' }}>{label}</span>
+            <span style={{ color: '#1e293b', fontWeight: '600', lineHeight: '1.4' }}>{value || 'N/A'}</span>
         </div>
     );
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             {viewingDoc && <DocumentViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: 'none', color: '#778eaeff', cursor: 'pointer', fontWeight: 'bold' }}>
-                    <ArrowLeft size={18} /> Back to List
-                </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem' }}>
+                    <button
+                        onClick={onBack}
+                        style={{
+                            background: '#f1f5f9',
+                            border: 'none',
+                            color: '#64748b',
+                            padding: '10px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.background = '#e2e8f0'}
+                        onMouseOut={(e) => e.target.style.background = '#f1f5f9'}
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    <div>
+                        <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b', fontWeight: 'bold' }}>Probate Application Review</h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', fontSize: '13px', color: '#64748b' }}>
+                            <span style={{ fontWeight: '600', color: '#3b82f6' }}>ID: PRB-{application.id}</span>
+                            <span style={{ opacity: 0.5 }}>•</span>
+                            <span>Filed: {formatDate(application.created_at)}</span>
+                        </div>
+                    </div>
+                </div>
                 <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
                     {/* Gazette Status Calculation */}
                     {(application.approval_date || (application.status === 'approved' && application.updated_at) || application.status === 'under_processing' || application.status === 'completed') && (() => {
@@ -224,176 +251,252 @@ const CRApplicationDetails = ({ appId, onBack, onSuccess }) => {
                     }}>
                         {application.status === 'under_processing' ? 'APPROVED / PROCESSING' : application.status.replace('_', ' ').toUpperCase()}
                     </span>
-                    <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '12px' }}>ID: PRB-{application.id}</p>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
-                {/* Deceased Details */}
-                <Section title="Deceased Information" icon={<User size={20} />}>
-                    <DetailRow label="Full Name" value={<span style={{ textTransform: 'capitalize' }}>{application.deceased_name}</span>} />
-                    <DetailRow label="Date of Death" value={formatDate(application.date_of_death)} />
-                    <DetailRow label="Home Address" value={application.home_address} />
-                    <DetailRow label="Death Location" value={application.death_location_address} />
-                    <DetailRow label="Occupation" value={application.occupation} />
-                    <DetailRow label="Employer" value={application.employer_name} />
-                    <DetailRow label="Employer Address" value={application.employer_address} />
-                </Section>
+            {/* Tab Navigation */}
+            <div style={{
+                display: 'flex',
+                gap: '1rem',
+                marginBottom: '2rem',
+                borderBottom: '1px solid #e5e7eb',
+                paddingBottom: '0.5rem',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+            }}>
+                {[
+                    { id: 'deceased', label: 'Deceased', icon: <User size={16} /> },
+                    { id: 'nok', label: 'Next of Kin', icon: <Users size={16} /> },
+                    { id: 'beneficiaries', label: 'Beneficiaries', icon: <Users size={16} /> },
+                    { id: 'estate', label: 'Estate', icon: <Briefcase size={16} /> },
+                    { id: 'sureties', label: 'Sureties', icon: <Shield size={16} /> },
+                    { id: 'payments', label: 'Payments', icon: <CheckCircle2 size={16} /> },
+                    { id: 'documents', label: 'Documents', icon: <FileText size={16} /> }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 20px',
+                            border: 'none',
+                            background: activeTab === tab.id ? '#3b82f6' : 'transparent',
+                            color: activeTab === tab.id ? 'white' : '#6b7280',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            transition: 'all 0.2s',
+                            boxShadow: activeTab === tab.id ? '0 4px 6px -1px rgba(59, 130, 246, 0.4)' : 'none'
+                        }}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
 
-                {/* Applicant/Next of Kin Profile */}
-                <Section title="Applicant/Next of Kin" icon={<Users size={20} />}>
-                    <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', alignItems: 'flex-start' }}>
-                        <div style={{ width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', background: '#f1f5f9', border: '1px solid #e2e8f0', flexShrink: 0 }}>
-                            {(application.applicant_profile_pic || application.profile_pic) ? (
-                                <img
-                                    src={(application.applicant_profile_pic || application.profile_pic).startsWith('http') ? (application.applicant_profile_pic || application.profile_pic) : `${api.defaults.baseURL?.replace('/api', '') || ''}${(application.applicant_profile_pic || application.profile_pic)}`}
-                                    alt="Applicant"
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                            ) : (
-                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-                                    <User size={32} />
-                                </div>
-                            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+                {activeTab === 'deceased' && (
+                    <Section title="Deceased Information" icon={<User size={20} />} fullWidth>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '0 2.5rem' }}>
+                            <DetailRow label="Full Name" value={<span style={{ textTransform: 'capitalize' }}>{application.deceased_name}</span>} />
+                            <DetailRow label="Date of Death" value={formatDate(application.date_of_death)} />
+                            <DetailRow label="Occupation" value={application.occupation} />
+                            <DetailRow label="Employer" value={application.employer_name} />
+                            <DetailRow label="Home Address" value={application.home_address} />
+                            <DetailRow label="Death Location" value={application.death_location_address} />
+                            <DetailRow label="Employer Address" value={application.employer_address} />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <DetailRow label="Full Name" value={<span style={{ textTransform: 'capitalize' }}>{`${application.applicant_first_name || application.first_name || ''} ${application.applicant_surname || application.surname || ''}`}</span>} />
-                            <DetailRow label="Gender" value={application.applicant_gender || application.gender} />
-                            <DetailRow label="Age" value={application.applicant_age || application.age ? `${application.applicant_age || application.age} Years` : null} />
-                            <DetailRow label="Email" value={application.applicant_email || application.email} />
-                            <DetailRow label="Phone" value={application.applicant_phone || application.phone} />
-                        </div>
-                    </div>
-                    <DetailRow label="Relationship" value={application.relationship_to_nok} />
-                    <DetailRow label="Address" value={application.applicant_address || application.address} />
-                    {application.filed_by_name && <DetailRow label="Filed By" value={<span style={{ textTransform: 'capitalize' }}>{application.filed_by_name}</span>} />}
-                </Section>
+                    </Section>
+                )}
 
-                {/* Beneficiaries */}
-                <Section title="Beneficiaries" icon={<Users size={20} />} fullWidth>
-                    {application.beneficiaries?.length > 0 ? (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                <thead>
-                                    <tr style={{ textAlign: 'left', borderBottom: '2px solid #f1f5f9' }}>
-                                        <th style={{ padding: '12px', color: '#778eaeff' }}>Name</th>
-                                        <th style={{ padding: '12px', color: '#778eaeff' }}>Relationship</th>
-                                        <th style={{ padding: '12px', color: '#778eaeff' }}>Age/Gender</th>
-                                        <th style={{ padding: '12px', color: '#778eaeff' }}>Contact</th>
-                                        <th style={{ padding: '12px', color: '#778eaeff' }}>Address</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {application.beneficiaries.map((b, i) => (
-                                        <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                            <td style={{ padding: '12px', fontWeight: 'bold', color: 'rgb\(18 37 74\)', textTransform: 'capitalize' }}>{b.name}</td>
-                                            <td style={{ padding: '12px', color: 'rgb\(18 37 74\)' }}>{b.relationship}</td>
-                                            <td style={{ padding: '12px', color: 'rgb\(18 37 74\)' }}>{b.age}Y / {b.gender}</td>
-                                            <td style={{ padding: '12px', color: 'rgb\(18 37 74\)' }}>{b.phone || 'N/A'}</td>
-                                            <td style={{ padding: '12px', color: '#778eaeff' }}>{b.address || 'N/A'}</td>
+                {activeTab === 'nok' && (
+                    <Section title="Applicant/Next of Kin" icon={<Users size={20} />} fullWidth>
+                        <div style={{ display: 'flex', gap: '2rem', marginBottom: '1rem', alignItems: 'flex-start' }}>
+                            <div style={{ width: '120px', height: '120px', borderRadius: '16px', overflow: 'hidden', background: '#f1f5f9', border: '1px solid #e2e8f0', flexShrink: 0, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                {(application.applicant_profile_pic || application.profile_pic) ? (
+                                    <img
+                                        src={(application.applicant_profile_pic || application.profile_pic).startsWith('http') ? (application.applicant_profile_pic || application.profile_pic) : `${api.defaults.baseURL?.replace('/api', '') || ''}${(application.applicant_profile_pic || application.profile_pic)}`}
+                                        alt="Applicant"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                                        <User size={48} />
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '0 2rem' }}>
+                                <DetailRow label="Full Name" value={<span style={{ textTransform: 'capitalize' }}>{`${application.applicant_first_name || application.first_name || ''} ${application.applicant_surname || application.surname || ''}`}</span>} />
+                                <DetailRow label="Gender" value={application.applicant_gender || application.gender} />
+                                <DetailRow label="Age" value={application.applicant_age || application.age ? `${application.applicant_age || application.age} Years` : null} />
+                                <DetailRow label="Email" value={application.applicant_email || application.email} />
+                                <DetailRow label="Phone" value={application.applicant_phone || application.phone} />
+                                <DetailRow label="Relationship" value={application.relationship_to_nok} />
+                                <DetailRow label="Address" value={application.applicant_address || application.address} />
+                                {application.filed_by_name && <DetailRow label="Filed By" value={<span style={{ textTransform: 'capitalize' }}>{application.filed_by_name}</span>} />}
+                            </div>
+                        </div>
+                    </Section>
+                )}
+
+                {activeTab === 'beneficiaries' && (
+                    <Section title="Beneficiaries" icon={<Users size={20} />} fullWidth>
+                        {application.beneficiaries?.length > 0 ? (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr style={{ textAlign: 'left', borderBottom: '2px solid #f1f5f9' }}>
+                                            <th style={{ padding: '12px', color: '#778eaeff' }}>Name</th>
+                                            <th style={{ padding: '12px', color: '#778eaeff' }}>Relationship</th>
+                                            <th style={{ padding: '12px', color: '#778eaeff' }}>Age/Gender</th>
+                                            <th style={{ padding: '12px', color: '#778eaeff' }}>Contact</th>
+                                            <th style={{ padding: '12px', color: '#778eaeff' }}>Address</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No beneficiaries listed</p>}
-                </Section>
+                                    </thead>
+                                    <tbody>
+                                        {application.beneficiaries.map((b, i) => (
+                                            <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                <td style={{ padding: '12px', fontWeight: 'bold', color: 'rgb(18, 37, 74)', textTransform: 'capitalize' }}>{b.name}</td>
+                                                <td style={{ padding: '12px', color: 'rgb(18, 37, 74)' }}>{b.relationship}</td>
+                                                <td style={{ padding: '12px', color: 'rgb(18, 37, 74)' }}>{b.age}Y / {b.gender}</td>
+                                                <td style={{ padding: '12px', color: 'rgb(18, 37, 74)' }}>{b.phone || 'N/A'}</td>
+                                                <td style={{ padding: '12px', color: '#778eaeff' }}>{b.address || 'N/A'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No beneficiaries listed</p>}
+                    </Section>
+                )}
 
-                {/* Estate Assets */}
-                <Section title="Estate Assets" icon={<Briefcase size={20} />} fullWidth>
-                    {application.assets?.length > 0 ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1rem' }}>
-                            {application.assets.map((a, i) => (
-                                <div key={i} style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                        <div>
-                                            <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#3b82f6', textTransform: 'uppercase', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>
-                                                {a.estate_type || a.asset_type || 'Asset'}
-                                            </span>
-                                            <h4 style={{ margin: '8px 0 0', color: 'rgb\(18 37 74\)' }}>{a.property_name || a.bank_name || a.broker_name || 'Asset Entry'}</h4>
-                                        </div>
-                                        <div style={{ color: '#10b981', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                                            ₦{(a.property_value || a.bank_balance || a.share_value || a.estimated_value || 0).toLocaleString()}
-                                        </div>
-                                    </div>
-
-                                    <div style={{ fontSize: '12px', color: '#778eaeff', display: 'grid', gap: '4px' }}>
-                                        {a.property_address && <div><strong>Address:</strong> {a.property_address}</div>}
-                                        {a.bank_account && <div><strong>Account:</strong> {a.bank_account} ({a.bank_account_name})</div>}
-                                        {a.broker_account && <div><strong>Broker A/C:</strong> {a.broker_account} ({a.broker_account_name})</div>}
-                                        {a.remark && <div style={{ marginTop: '8px', fontStyle: 'italic' }}>"{a.remark}"</div>}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No estate assets listed</p>}
-                </Section>
-
-                {/* Sureties */}
-                <Section title="Sureties" icon={<Shield size={20} />}>
-                    {application.sureties?.length > 0 ? (
-                        <div style={{ display: 'grid', gap: '1rem' }}>
-                            {application.sureties.map((s, i) => (
-                                <div key={i} style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                    <div style={{ width: '60px', height: '60px', borderRadius: '8px', overflow: 'hidden', background: '#e2e8f0', flexShrink: 0 }}>
-                                        {s.picture_path ? (
-                                            <img
-                                                src={s.picture_path.startsWith('http') ? s.picture_path : `${api.defaults.baseURL?.replace('/api', '') || ''}${s.picture_path}`}
-                                                alt={s.name}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
-                                        ) : (
-                                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-                                                <User size={24} />
+                {activeTab === 'estate' && (
+                    <Section title="Estate Assets" icon={<Briefcase size={20} />} fullWidth>
+                        {application.assets?.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1rem' }}>
+                                {application.assets.map((a, i) => (
+                                    <div key={i} style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                            <div>
+                                                <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#3b82f6', textTransform: 'uppercase', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+                                                    {a.estate_type || a.asset_type || 'Asset'}
+                                                </span>
+                                                <h4 style={{ margin: '8px 0 0', color: 'rgb(18, 37, 74)' }}>{a.property_name || a.bank_name || a.broker_name || 'Asset Entry'}</h4>
                                             </div>
-                                        )}
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ color: 'rgb\(18 37 74\)', fontWeight: 'bold', marginBottom: '2px', textTransform: 'capitalize' }}>{s.name}</div>
-                                        <div style={{ color: '#778eaeff', fontSize: '12px' }}>{s.occupation || 'N/A'} • {s.phone || 'No phone'}</div>
-                                        <div style={{ color: '#10b981', fontSize: '11px', fontWeight: '600', marginTop: '2px' }}>Net Worth: ₦{s.networth?.toLocaleString() || 0}</div>
-                                        <div style={{ marginTop: '8px', fontSize: '12px' }}>
-                                            <span style={{
-                                                padding: '2px 6px', borderRadius: '4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold',
-                                                background: s.acceptance === 'accepted' ? '#dcfce7' : '#f1f5f9',
-                                                color: s.acceptance === 'accepted' ? '#15803d' : '#778eaeff'
-                                            }}>
-                                                {s.acceptance || 'Pending'}
-                                            </span>
+                                            <div style={{ color: '#10b981', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                                ₦{(a.property_value || a.bank_balance || a.share_value || a.estimated_value || 0).toLocaleString()}
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#778eaeff', display: 'grid', gap: '4px' }}>
+                                            {a.property_address && <div><strong>Address:</strong> {a.property_address}</div>}
+                                            {a.bank_account && <div><strong>Account:</strong> {a.bank_account} ({a.bank_account_name})</div>}
+                                            {a.broker_account && <div><strong>Broker A/C:</strong> {a.broker_account} ({a.broker_account_name})</div>}
+                                            {a.remark && <div style={{ marginTop: '8px', fontStyle: 'italic' }}>"{a.remark}"</div>}
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No sureties provided</p>}
-                </Section>
+                                ))}
+                            </div>
+                        ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No estate assets listed</p>}
+                    </Section>
+                )}
 
-
-
-                {/* Attached Documents */}
-                <Section title="Attached Documents" icon={<FileText size={20} />}>
-                    {application.documents?.length > 0 ? (
-                        <div style={{ display: 'grid', gap: '0.75rem' }}>
-                            {application.documents.map((d, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setViewingDoc(d)}
-                                    style={{
-                                        padding: '0.75rem', background: '#f8fafc', borderRadius: '8px', fontSize: '13px',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#3b82f6', textDecoration: 'none',
-                                        border: '1px solid #f1f5f9', width: '100%', cursor: 'pointer'
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <FileText size={16} />
-                                        <span>{d.document_name || d.document_type}</span>
+                {activeTab === 'sureties' && (
+                    <Section title="Sureties" icon={<Shield size={20} />} fullWidth>
+                        {application.sureties?.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1rem' }}>
+                                {application.sureties.map((s, i) => (
+                                    <div key={i} style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                        <div style={{ width: '60px', height: '60px', borderRadius: '8px', overflow: 'hidden', background: '#e2e8f0', flexShrink: 0 }}>
+                                            {s.picture_path ? (
+                                                <img
+                                                    src={s.picture_path.startsWith('http') ? s.picture_path : `${api.defaults.baseURL?.replace('/api', '') || ''}${s.picture_path}`}
+                                                    alt={s.name}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                                                    <User size={24} />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ color: 'rgb(18, 37, 74)', fontWeight: 'bold', marginBottom: '2px', textTransform: 'capitalize' }}>{s.name}</div>
+                                            <div style={{ color: '#778eaeff', fontSize: '12px' }}>{s.occupation || 'N/A'} • {s.phone || 'No phone'}</div>
+                                            <div style={{ color: '#10b981', fontSize: '11px', fontWeight: '600', marginTop: '2px' }}>Net Worth: ₦{s.networth?.toLocaleString() || 0}</div>
+                                            <div style={{ marginTop: '8px', fontSize: '12px' }}>
+                                                <span style={{
+                                                    padding: '2px 6px', borderRadius: '4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold',
+                                                    background: s.acceptance === 'accepted' ? '#dcfce7' : '#f1f5f9',
+                                                    color: s.acceptance === 'accepted' ? '#15803d' : '#778eaeff'
+                                                }}>
+                                                    {s.acceptance || 'Pending'}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <ChevronRight size={16} />
-                                </button>
-                            ))}
-                        </div>
-                    ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No documents uploaded</p>}
-                </Section>
+                                ))}
+                            </div>
+                        ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No sureties provided</p>}
+                    </Section>
+                )}
+
+                {activeTab === 'payments' && (
+                    <Section title="Payment Details" icon={<CheckCircle2 size={20} />} fullWidth>
+                        {application.payments?.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                                {application.payments.map((p, i) => (
+                                    <div key={i} style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#778eaeff' }}>{p.item_paid || 'Probate Fee'}</span>
+                                            <span style={{ color: '#10b981', fontWeight: 'bold' }}>₦{p.amount?.toLocaleString()}</span>
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                            <div>Ref: {p.transaction_id || 'N/A'}</div>
+                                            <div>Date: {formatDate(p.payment_date || p.created_at)}</div>
+                                            <div style={{ marginTop: '4px', color: p.payment_status === 'paid' ? '#10b981' : '#f59e0b', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                                Status: {p.payment_status || 'Pending'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p style={{ color: '#778eaeff', fontSize: '13px' }}>No payment records found.</p>
+                        )}
+                    </Section>
+                )}
+
+                {activeTab === 'documents' && (
+                    <Section title="Attached Documents" icon={<FileText size={20} />} fullWidth>
+                        {application.documents?.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+                                {application.documents.map((d, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setViewingDoc(d)}
+                                        style={{
+                                            padding: '0.75rem', background: '#f8fafc', borderRadius: '8px', fontSize: '13px',
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#3b82f6', textDecoration: 'none',
+                                            border: '1px solid #f1f5f9', width: '100%', cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <FileText size={16} />
+                                            <span>{d.document_name || d.document_type}</span>
+                                        </div>
+                                        <ChevronRight size={16} />
+                                    </button>
+                                ))}
+                            </div>
+                        ) : <p style={{ color: '#778eaeff', fontSize: '13px' }}>No documents uploaded</p>}
+                    </Section>
+                )}
             </div>
 
             {/* PR Remarks */}
@@ -402,10 +505,11 @@ const CRApplicationDetails = ({ appId, onBack, onSuccess }) => {
                     "{application.registrar_remarks || 'No remarks from Registrar.'}"
                 </div>
             </Section>
+
             {/* Approval Action */}
             {application.status !== 'under_processing' && application.status !== 'completed' && application.status !== 'rejected' ? (
                 <div className="glass-card" style={{ background: '#ffffff', border: '1px solid #f1f5f9', marginTop: '2rem', padding: '2rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
-                    <h3 style={{ color: 'rgb\(18 37 74\)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h3 style={{ color: 'rgb(18 37 74)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <CheckCircle2 size={20} color="#10b981" />
                         Final Approval
                     </h3>
@@ -419,7 +523,7 @@ const CRApplicationDetails = ({ appId, onBack, onSuccess }) => {
                         placeholder="Add final approval remarks (optional)..."
                         style={{
                             width: '100%', minHeight: '120px', padding: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0',
-                            borderRadius: '12px', color: 'rgb\(18 37 74\)', outline: 'none', fontSize: '14px', marginBottom: '1.5rem'
+                            borderRadius: '12px', color: 'rgb(18 37 74)', outline: 'none', fontSize: '14px', marginBottom: '1.5rem'
                         }}
                     />
 
@@ -450,7 +554,7 @@ const CRApplicationDetails = ({ appId, onBack, onSuccess }) => {
             ) : (
                 <div className="glass-card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', marginTop: '2rem', padding: '2rem', textAlign: 'center' }}>
                     <CheckCircle2 size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
-                    <h3 style={{ color: 'rgb\(18 37 74\)', marginBottom: '0.5rem' }}>Application Already {application.status.replace('_', ' ').toUpperCase()}</h3>
+                    <h3 style={{ color: 'rgb(18 37 74)', marginBottom: '0.5rem' }}>Application Already {application.status.replace('_', ' ').toUpperCase()}</h3>
                     <p style={{ color: '#778eaeff', fontSize: '14px', marginBottom: '1.5rem' }}>
                         This application has already been processed and is currently marked as <strong>{application.status.replace('_', ' ')}</strong>.
                     </p>
@@ -624,7 +728,6 @@ const CRProbateReview = ({ isMobile, mode = 'cr_pending', title: pageTitle }) =>
                 const dateVal = row.approval_date || (row.status === 'approved' && row.updated_at);
                 const isMatured = dateVal ? Math.floor((new Date() - new Date(dateVal)) / (1000 * 60 * 60 * 24)) >= 21 : false;
 
-                // CR can ALWAYS see Prayers in history mode. PR/PD can only see if matured.
                 if (mode === 'history') {
                     const isGenerating = loadingPrayers === row.id;
                     return (
@@ -702,7 +805,7 @@ const CRProbateReview = ({ isMobile, mode = 'cr_pending', title: pageTitle }) =>
     return (
         <div style={{ padding: isMobile ? '0' : '1rem' }}>
             <div style={{ marginBottom: '2rem' }}>
-                <h2 style={{ color: 'rgb\(18 37 74\)', margin: 0 }}>{pageTitle || 'Probate Approvals'}</h2>
+                <h2 style={{ color: 'rgb(18 37 74)', margin: 0 }}>{pageTitle || 'Probate Approvals'}</h2>
                 <p style={{ color: '#778eaeff', fontSize: '14px' }}>
                     {mode === 'history' ? 'View approved letters of administration' : 'Review and give final approval for probate applications'}
                 </p>
@@ -716,7 +819,6 @@ const CRProbateReview = ({ isMobile, mode = 'cr_pending', title: pageTitle }) =>
                 isMobile={isMobile}
                 searchPlaceholder="Search by ID or name..."
             />
-            {/* Prayers & Letter Preview Modal */}
             <AnimatePresence>
                 {viewingDoc && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

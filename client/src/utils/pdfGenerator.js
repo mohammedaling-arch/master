@@ -501,19 +501,19 @@ export const generateSuretyFormPDF = async ({ application, sureties }) => {
             : (application.first_name ? `${application.first_name} ${application.surname}` : '__________');
 
         const replacements = {
-            '[DECEASED_NAME]': application.deceased_name?.toUpperCase() || '__________',
-            '[DECEASED_ADDRESS]': application.home_address || '__________',
+            '[DECEASED_NAME]': application.deceased_name?.toUpperCase() || '______________',
+            '[DECEASED_ADDRESS]': application.home_address || '_______________',
             '[DATE_OF_DEATH]': formatDate(application.date_of_death),
-            '[PLACE_OF_DEATH]': application.death_location_address || '__________',
+            '[PLACE_OF_DEATH]': application.death_location_address || '_______________',
             '[APPLICANT_NAME]': applicantName.toUpperCase(),
-            '[APPLICANT_ADDRESS]': application.applicant_address || application.address || '__________',
+            '[APPLICANT_ADDRESS]': application.applicant_address || application.address || '_______________',
             '[SURETY_1_NAME]': sureties[0].name.toUpperCase(),
             '[SURETY_1_ADDRESS]': sureties[0].address,
-            '[SURETY_1_PHONE]': sureties[0].phone || '__________________',
+            '[SURETY_1_PHONE]': sureties[0].phone || '_________________________',
             '[SURETY_1_WORTH]': formatMoney(sureties[0].networth),
             '[SURETY_2_NAME]': sureties[1].name.toUpperCase(),
             '[SURETY_2_ADDRESS]': sureties[1].address,
-            '[SURETY_2_PHONE]': sureties[1].phone || '__________________',
+            '[SURETY_2_PHONE]': sureties[1].phone || '_________________________',
             '[SURETY_2_WORTH]': formatMoney(sureties[1].networth),
             '[TOTAL_WORTH]': formatMoney(totalWorth),
             '[YEAR]': new Date().getFullYear(),
@@ -532,15 +532,15 @@ export const generateSuretyFormPDF = async ({ application, sureties }) => {
             <div style="position: relative; margin-bottom: 20px;">
                 <!-- Surety Photos -->
                 <div style="position: absolute; top: 0; left: 0;">
-                    ${surety1Pic ? `<img src="${surety1Pic}" style="width: 80px; height: 80px; object-fit: cover; border: 1px solid #000;" />` : '<div style="width:80px; height:80px; border:1px solid #000; display:flex; align-items:center; justify-content:center; font-size:10px;">Surety 1 Photo</div>'}
+                    ${surety1Pic ? `<img src="${surety1Pic}" style="width: 80px; height: 90px; object-fit: cover; border: 1px solid #000;" />` : '<div style="width:80px; height:80px; border:1px solid #000; display:flex; align-items:center; justify-content:center; font-size:10px;">Surety 1 Photo</div>'}
                 </div>
                 <div style="position: absolute; top: 0; right: 0;">
-                    ${surety2Pic ? `<img src="${surety2Pic}" style="width: 80px; height: 80px; object-fit: cover; border: 1px solid #000;" />` : '<div style="width:80px; height:80px; border:1px solid #000; display:flex; align-items:center; justify-content:center; font-size:10px;">Surety 2 Photo</div>'}
+                    ${surety2Pic ? `<img src="${surety2Pic}" style="width: 80px; height: 90px; object-fit: cover; border: 1px solid #000;" />` : '<div style="width:80px; height:80px; border:1px solid #000; display:flex; align-items:center; justify-content:center; font-size:10px;">Surety 2 Photo</div>'}
                 </div>
 
                 <div style="text-align: center; padding-top: 10px;">
                      <h3 style="margin: 0; font-family: 'Times New Roman', serif;">In the High Court of Justice of the Borno State of Nigeria</h3>
-                    <h2 style="margin: 20px 0;">Justification of sureties</h2>
+                    <h2 style="margin: 20px 0;">Justification of Sureties</h2>
                 </div>
             </div>
 
@@ -556,17 +556,17 @@ export const generateSuretyFormPDF = async ({ application, sureties }) => {
             </div>
 
             <p style="text-align: justify; line-height: 1.8; margin-top: 20px;">
-                Several make Oath and say that we are the proposed sureties in the penal of N<b>[TOTAL_WORTH]</b> on behalf of <b>[APPLICANT_NAME]</b> the intended administration of the personal property of <b>[DECEASED_NAME]</b> late of [DECEASED_ADDRESS] Deceased for his faithful administration thereof.
+                Several make Oath and say that we are the proposed sureties in the penal of N<b>.........................................................</b> on behalf of <b>[APPLICANT_NAME]</b> the intended administrator of the personal property of <b>[DECEASED_NAME]</b> late of [DECEASED_ADDRESS] Deceased for his faithful administration thereof.
             </p>
 
             <p style="text-align: justify; line-height: 1.8;">
                 I and the said <b>[SURETY_1_NAME]</b> for myself<br/>
-                Make Oath and say that I am, after payment of all debts, well and truly worth in money and effects the sum of N<b>[SURETY_1_WORTH]</b></br>
+                Make Oath and say that I am, after payment of all debts, well and truly worth in money and effects the sum of N<b>.....................................................</b></br>
             </p>
             <div style="text-align: right; margin-top: 20px; margin-bottom: 40px;">(SGD)........................................................</div>
 
             <p style="text-align: justify; line-height: 1.8;">
-                And I the said <b>[SURETY_2_NAME]</b> for myself, make oath and say that I am after payment of all my just debts, we and truly worth in money and effect the sum N<b>[SURETY_2_WORTH]</b></br>
+                And I the said <b>[SURETY_2_NAME]</b> for myself, make oath and say that I am after payment of all my just debts, well and truly worth in money and effect the sum N<b>..........................................................</b></br>
             </p>
             <div style="text-align: right; margin-top: 40px; margin-bottom: 40px;">(SGD)........................................................</div>
 
@@ -578,17 +578,17 @@ export const generateSuretyFormPDF = async ({ application, sureties }) => {
             </div>
 
             <div>
-                N100.00 paid on R.C.R No.................................................this........................... day of......................20..........
+                N....................paid on R.C.R No...........................................this........................... day of......................20..........
             </div>
         `;
 
         // --- PAGE 2 TEMPLATE: Letter of Approval ---
         const page2Template = `
-            <div style="text-align: center; margin-bottom: 40px;">
+            <div style="text-align: center; margin-bottom: 60px;">
                 <h2 style="margin: 0; font-family: 'Times New Roman', serif;">Letter of Approval of Sureties</h2>
             </div>
 
-            <div style="margin-bottom: 30px; font-weight: bold;">
+            <div style="margin-bottom: 40px; font-weight: bold;">
                 Probate Registrar,<br/>
                 High Court of Justice,<br/>
                 P.M.B 1038,<br/>
@@ -602,18 +602,13 @@ export const generateSuretyFormPDF = async ({ application, sureties }) => {
             </p>
 
             <p style="line-height: 2.0; text-align: justify; margin-bottom: 40px;">
-                I am satisfied that the said <b>[SURETY_1_NAME]</b> And <b>[SURETY_2_NAME]</b> are each Good and sufficient value in the sum of Naira <b>[TOTAL_WORTH]</b> Kobo
+                I am satisfied that the said <b>[SURETY_1_NAME]</b> and <b>[SURETY_2_NAME]</b> are each Good and sufficient value in the sum of Naira <b>..........................................................................</b> Kobo
             </p>
  
 
-            
-            <div style="text-align: right; margin-top: 60px;">
-                <div style=" display: inline-block; width: 200px; text-align: center; padding-top: 5px;">
-                   N................................................K
-                </div>
-            </div>
+             
 
-            <div style="text-align: right; margin-top: 60px;">
+            <div style="text-align: right; margin-top: 120px;">
                 <div style=" display: inline-block; width: 200px; text-align: center; padding-top: 5px;">
                 .......................................................
                     Magistrate/Judge

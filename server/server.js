@@ -3354,13 +3354,13 @@ app.delete('/api/user/probate-applications/:id/beneficiaries/:id2', authenticate
 // Sureties CRUD
 app.post('/api/user/probate-applications/:id/sureties', authenticateToken, suretyUpload.single('picture'), (req, res) => {
     const { id } = req.params;
-    const { name, address, networth, remark, acceptance } = req.body;
+    const { name, address, phone, networth, remark, acceptance } = req.body;
     let picture_path = null;
     if (req.file) {
         picture_path = `/uploads/sureties/${req.file.filename}`;
     }
-    const sql = 'INSERT INTO probate_sureties (probate_application_id, name, address, networth, remark, acceptance, picture_path) VALUES (?, ?, ?, ?, ?, ?, ?)';
-    db.query(sql, [id, name, address, networth, remark, acceptance, picture_path], (err, result) => {
+    const sql = 'INSERT INTO probate_sureties (probate_application_id, name, address, phone, networth, remark, acceptance, picture_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+    db.query(sql, [id, name, address, phone, networth, remark, acceptance, picture_path], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ message: 'Surety added', id: result.insertId });
     });
@@ -3368,10 +3368,10 @@ app.post('/api/user/probate-applications/:id/sureties', authenticateToken, suret
 
 app.put('/api/user/probate-applications/:id/sureties/:id2', authenticateToken, suretyUpload.single('picture'), (req, res) => {
     const { id2 } = req.params;
-    const { name, address, networth, remark, acceptance } = req.body;
+    const { name, address, phone, networth, remark, acceptance } = req.body;
 
-    let sql = 'UPDATE probate_sureties SET name = ?, address = ?, networth = ?, remark = ?, acceptance = ?';
-    let params = [name, address, networth, remark, acceptance];
+    let sql = 'UPDATE probate_sureties SET name = ?, address = ?, phone = ?,  networth = ?, remark = ?, acceptance = ?';
+    let params = [name, address, phone, networth, remark, acceptance];
 
     if (req.file) {
         sql += ', picture_path = ?';

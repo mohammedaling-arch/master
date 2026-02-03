@@ -5,7 +5,7 @@ import api from '../../utils/api';
 import { formatDate } from '../../utils/dateUtils';
 import DataTable from '../common/DataTable';
 
-const ProbateApplicationsList = ({ user, isMobile, onSelect, filterStatus, title, staffMode = false }) => {
+const ProbateApplicationsList = ({ user, isMobile, onSelect, filterStatus, title, staffMode = false, actions }) => {
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -179,6 +179,7 @@ const ProbateApplicationsList = ({ user, isMobile, onSelect, filterStatus, title
                 loading={loading}
                 isMobile={isMobile}
                 onRowClick={(row) => onSelect(row.id)}
+                actions={actions}
                 searchPlaceholder="Search by name or ID..."
             />
         </div>
