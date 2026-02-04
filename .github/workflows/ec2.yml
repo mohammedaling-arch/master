@@ -1,0 +1,48 @@
+name: Deploy React & Node to EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Match your local version
+
+      - name: Build client
+        run: |
+          cd frontend # Adjust if your React app is in a subfolder
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Deploy to EC2 via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          # Uploads build folder to Nginx root and backend code
+          source: "client/build/*, backend/*"
+          target: "/home/${{ secrets.EC2_USERNAME }}/deploy"
+
+      - name: Execute Remote SSH Commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Move frontend files to Nginx directory
+            sudo cp -r /home/${{ secrets.EC2_USERNAME }}/deploy/client/build/* /var/www/html/
+            
+            # Update Backend
+            cd /home/${{ secrets.EC2_USERNAME }}/deploy/backend
+            npm install --production
+            pm2 restart all || pm2 start server.js --name "api"
