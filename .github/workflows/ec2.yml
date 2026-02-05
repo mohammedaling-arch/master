@@ -18,7 +18,7 @@ jobs:
 
       - name: Build client
         run: |
-          cd frontend # Adjust if your React app is in a subfolder
+          cd client # Adjust if your React app is in a subfolder
           npm install --legacy-peer-deps
           npm run build
 
