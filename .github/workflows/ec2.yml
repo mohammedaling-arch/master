@@ -47,7 +47,7 @@ jobs:
           source: "server/*"
           target: "/home/${{ secrets.EC2_USERNAME }}/deploy"
 
-        name: Execute Remote SSH Commands
+        name: Execute Remote SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
