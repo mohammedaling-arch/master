@@ -24,7 +24,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           # strip_components: 2 removes 'client/build' from the path on the server
-          source: "client/build/*"
+          source: "client/build/**"
           target: "/home/${{ secrets.EC2_USERNAME }}/deploy/frontend"
           strip_components: 2
 
